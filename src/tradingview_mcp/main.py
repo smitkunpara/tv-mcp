@@ -44,7 +44,7 @@ def get_historical_data(
         min_length=1,
         max_length=20
     )],
-    timeframe: Annotated[Literal['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'], Field(
+    timeframe: Annotated[str, Field(
         description="Time interval for each candle. Options: 1m (1 minute), 5m, 15m, 30m, 1h (1 hour), 2h, 4h, 1d (1 day), 1w (1 week), 1M (1 month)"
     )],
     numb_price_candles: Annotated[Union[int, str], Field(
@@ -260,7 +260,7 @@ def get_all_indicators(
         min_length=2,
         max_length=30
     )],
-    timeframe: Annotated[Literal['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'], Field(
+    timeframe: Annotated[str, Field(
         description=(
             "Time interval for indicator snapshot. Valid options: "
             f"{', '.join(VALID_TIMEFRAMES)}"
@@ -564,6 +564,7 @@ IV (overall/bid/ask), bid/ask/theo prices, intrinsic/time values for CALL/PUT at
 
         exchange = validate_exchange(exchange)
         symbol = validate_symbol(symbol)
+        expiry_date = str(expiry_date) if isinstance(expiry_date, int) else expiry_date
         
         result = process_option_chain_with_analysis(
             symbol=symbol,

@@ -5,7 +5,8 @@ Utility functions for TradingView MCP server.
 from datetime import datetime
 import pytz
 from typing import Any, Dict, List
-from bs4 import Tag, NavigableString
+from bs4 import Tag
+from bs4.element import NavigableString
 from .validators import INDICATOR_MAPPING, INDICATOR_FIELD_MAPPING
 
 

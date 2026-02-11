@@ -20,7 +20,7 @@ from src.tradingview_mcp.validators import (
 class HistoricalDataRequest(BaseModel):
     exchange: str = Field(..., min_length=2, max_length=30, description=f"Stock exchange name (e.g., 'NSE', 'NASDAQ', 'BINANCE'). Must be one of the valid exchanges like {', '.join(VALID_EXCHANGES[:5])}... Use uppercase format.")
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). Search online for correct symbol format for your exchange.")
-    timeframe: Literal['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'] = Field(..., description="Time interval for each candle. Options: 1m (1 minute), 5m, 15m, 30m, 1h (1 hour), 2h, 4h, 1d (1 day), 1w (1 week), 1M (1 month)")
+    timeframe: str = Field(..., description="Time interval for each candle. Options: 1m (1 minute), 5m, 15m, 30m, 1h (1 hour), 2h, 4h, 1d (1 day), 1w (1 week), 1M (1 month)")
     numb_price_candles: Union[int, str] = Field(..., description="Number of historical candles to fetch (1-5000). Accepts int or str (e.g., 100 or '100'). More candles = longer history. E.g., 100 for last 100 periods.")
     indicators: List[str] = Field(default=[], description=f"List of technical indicators to include. Options: {', '.join(INDICATOR_MAPPING.keys())}. Example: ['RSI', 'MACD', 'CCI', 'BB']. Leave empty for no indicators.")
 
@@ -39,7 +39,7 @@ class NewsContentRequest(BaseModel):
 class AllIndicatorsRequest(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). Required.")
     exchange: str = Field(..., min_length=2, max_length=30, description=f"Stock exchange name (e.g., 'NSE'). Must be one of the valid exchanges. Valid examples: {', '.join(VALID_EXCHANGES[:5])}... Use uppercase format.")
-    timeframe: Literal['1m', '5m', '15m', '30m', '1h', '2h', '4h', '1d', '1w', '1M'] = Field('1m', description=f"Time interval for indicator snapshot. Valid options: {', '.join(VALID_TIMEFRAMES)}")
+    timeframe: str = Field('1m', description=f"Time interval for indicator snapshot. Valid options: {', '.join(VALID_TIMEFRAMES)}")
 
 
 class IdeasRequest(BaseModel):

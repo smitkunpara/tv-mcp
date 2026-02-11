@@ -96,7 +96,7 @@ class ValidationError(Exception):
     pass
 
 
-def validate_exchange(exchange: Optional[str]) -> Optional[str]:
+def validate_exchange(exchange: str) -> str:
     """
     Validate exchange name and convert to uppercase.
     
@@ -104,14 +104,12 @@ def validate_exchange(exchange: Optional[str]) -> Optional[str]:
         exchange: Exchange name to validate
         
     Returns:
-        Uppercase exchange name or None
+        Uppercase exchange name
         
     Raises:
         ValidationError: If exchange is invalid
     """
-    if exchange is None:
-        return None
-    
+        
     exchange_upper = exchange.upper()
     if exchange_upper not in VALID_EXCHANGES:
         raise ValidationError(
