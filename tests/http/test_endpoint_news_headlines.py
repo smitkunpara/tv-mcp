@@ -5,6 +5,7 @@ Mirrors tests/stdio/test_fetch_news_headlines.py
 
 import pytest
 from toon import decode as toon_decode
+from datetime import datetime, timedelta
 
 class TestNewsHeadlinesEndpoint:
     """Test /news-headlines endpoint with real data"""
@@ -92,3 +93,22 @@ class TestNewsHeadlinesEndpoint:
         response = client.post("/news-headlines", json=payload, headers=auth_headers)
         assert response.status_code in [400, 422]
         assert "Exchange" in response.json()["detail"] or "exchange" in response.json()["detail"]
+
+    def test_news_date_filtering(self, client, auth_headers):
+        """Test news filtering with future start date"""
+        future_date = (datetime.now() + timedelta(days=3650)).strftime("%d-%m-%Y %H:%M")
+        
+        payload = {
+            "symbol": "AAPL",
+            "exchange": "NASDAQ",
+            "start_datetime": future_date
+        }
+        
+        response = client.post("/news-headlines", json=payload, headers=auth_headers)
+        assert response.status_code == 200
+        
+        data = toon_decode(response.json()["data"])
+        headlines = data.get("headlines", [])
+        
+        # Should be empty or contain non-parseable dates only
+        assert len(headlines) == 0

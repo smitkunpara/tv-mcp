@@ -3,6 +3,7 @@ Tests for /historical-data endpoint.
 Mirrors tests/stdio/test_fetch_historical_data.py
 """
 
+import os
 import pytest
 from toon import decode as toon_decode
 
@@ -40,6 +41,10 @@ class TestHistoricalDataEndpoint:
         assert 'volume' in first_candle
         assert 'datetime_ist' in first_candle or 'timestamp' in first_candle
 
+    @pytest.mark.skipif(
+        not os.getenv("TRADINGVIEW_COOKIE"),
+        reason="TRADINGVIEW_COOKIE not set — indicator tests need a valid session"
+    )
     def test_ohlc_with_single_indicator(self, client, auth_headers):
         """Test with single indicator (RSI)"""
         payload = {

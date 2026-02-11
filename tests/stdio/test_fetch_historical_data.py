@@ -44,6 +44,10 @@ class TestFetchHistoricalData:
         assert 'volume' in first_candle
         assert 'datetime_ist' in first_candle or 'timestamp' in first_candle
     
+    @pytest.mark.skipif(
+        not os.getenv("TRADINGVIEW_COOKIE"),
+        reason="TRADINGVIEW_COOKIE not set — indicator tests need a valid session"
+    )
     def test_ohlc_with_single_indicator(self):
         """Test with single indicator (RSI)"""
         result = fetch_historical_data(

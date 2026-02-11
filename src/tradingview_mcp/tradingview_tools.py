@@ -314,12 +314,43 @@ def fetch_news_headlines(
     exchange: Optional[str] = None,
     provider: str = "all",
     area: str = 'asia',
-    cookie: Optional[str] = None
+    cookie: Optional[str] = None,
+    start_datetime: Optional[str] = None,
+    end_datetime: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     symbol = validate_symbol(symbol)
     exchange = validate_exchange(exchange) if exchange else None
     provider_param = validate_news_provider(provider)
     area = validate_area(area)
+
+    # Parse date filters (IST format: DD-MM-YYYY HH:MM)
+    from datetime import datetime as dt, timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    IST_FORMATS = ["%d-%m-%Y %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y"]
+    
+    start_ts = None
+    end_ts = None
+    if start_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                dt_obj = dt.strptime(start_datetime, fmt)
+                start_ts = dt_obj.replace(tzinfo=IST).timestamp()
+                break
+            except ValueError:
+                continue
+        if start_ts is None:
+            raise ValidationError(f"Invalid start_datetime format: {start_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 09:00')")
+            
+    if end_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                dt_obj = dt.strptime(end_datetime, fmt)
+                end_ts = dt_obj.replace(tzinfo=IST).timestamp()
+                break
+            except ValueError:
+                continue
+        if end_ts is None:
+            raise ValidationError(f"Invalid end_datetime format: {end_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 18:00')")
     
     try:
         news_scraper = NewsScraper(
@@ -343,6 +374,44 @@ def fetch_news_headlines(
         # Clean and format headlines
         cleared_headlines = []
         for headline in news_headlines:
+            published = headline.get("published")
+            pub_ts = None
+            
+            # Helper to get timestamp
+            if isinstance(published, (int, float)):
+                pub_ts = float(published)
+            elif isinstance(published, str) and published:
+                for fmt in [
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%dT%H:%M:%SZ",
+                    "%Y-%m-%d %H:%M:%S",
+                    "%b %d, %Y %H:%M",
+                    "%d %b %Y %H:%M",
+                ]:
+                    try:
+                        # Parsing string dates - complicated by timezones
+                        # If string has Z, it's UTC. 
+                        # If not, naive usually implies source local or UTC. 
+                        # We'll assume UTC if naive for news.
+                        dt_obj = dt.strptime(published, fmt)
+                        pub_ts = dt_obj.replace(tzinfo=timezone.utc).timestamp() if not dt_obj.tzinfo else dt_obj.timestamp()
+                        break
+                    except ValueError:
+                        continue
+
+            # Date filtering
+            if start_ts or end_ts:
+                if pub_ts is not None:
+                    if start_ts and pub_ts < start_ts:
+                        continue
+                    if end_ts and pub_ts > end_ts:
+                        continue
+                else:
+                    # If we can't parse date, keep it? Or skip?
+                    # Previous logic kept it. Let's keep it to be safe, but typically we want to filter OUT if unsure and strict.
+                    # But if we are unsure, maybe user wants to see it.
+                    pass 
+
             cleared_headline = {
                 "title": headline.get("title"),
                 "published": headline.get("published"),
@@ -450,10 +519,36 @@ def fetch_minds(
     symbol: str,
     exchange: str,
     limit: Optional[int] = None,
-    cookie: Optional[str] = None
+    cookie: Optional[str] = None,
+    start_datetime: Optional[str] = None,
+    end_datetime: Optional[str] = None
 ) -> Dict[str, Any]:
     exchange = validate_exchange(exchange)
     symbol = validate_symbol(symbol)
+
+    # Parse date filters (IST format: DD-MM-YYYY HH:MM)
+    from datetime import datetime as dt
+    IST_FORMATS = ["%d-%m-%Y %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y"]
+    start_dt = None
+    end_dt = None
+    if start_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                start_dt = dt.strptime(start_datetime, fmt)
+                break
+            except ValueError:
+                continue
+        if start_dt is None:
+            raise ValidationError(f"Invalid start_datetime format: {start_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 09:00')")
+    if end_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                end_dt = dt.strptime(end_datetime, fmt)
+                break
+            except ValueError:
+                continue
+        if end_dt is None:
+            raise ValidationError(f"Invalid end_datetime format: {end_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 18:00')")
 
     if limit is not None:
         try:
@@ -486,6 +581,38 @@ def fetch_minds(
                 "suggestion": "Please verify the symbol and exchange."
             }
         
+        # Apply date filtering on discussion data
+        if (start_dt or end_dt) and discussions.get('data'):
+            filtered_data = []
+            for item in discussions['data']:
+                timestamp = item.get('timestamp', '') or item.get('published', '') or item.get('created', '')
+                if timestamp:
+                    try:
+                        pub_dt = None
+                        for fmt in [
+                            "%Y-%m-%dT%H:%M:%S",
+                            "%Y-%m-%dT%H:%M:%SZ",
+                            "%Y-%m-%d %H:%M:%S",
+                            "%b %d, %Y %H:%M",
+                            "%d %b %Y %H:%M",
+                        ]:
+                            try:
+                                pub_dt = dt.strptime(timestamp, fmt)
+                                break
+                            except ValueError:
+                                continue
+                        
+                        if pub_dt:
+                            if start_dt and pub_dt < start_dt:
+                                continue
+                            if end_dt and pub_dt > end_dt:
+                                continue
+                    except Exception:
+                        pass  # If can't parse, include the item
+                filtered_data.append(item)
+            discussions['data'] = filtered_data
+            discussions['total'] = len(filtered_data)
+        
         # Return with success flag
         return {
             'success': True,
@@ -510,7 +637,9 @@ def fetch_ideas(
     endPage: int = 1,
     sort: str = 'popular',
     export_type: str = 'json',
-    cookie: Optional[str] = None
+    cookie: Optional[str] = None,
+    start_datetime: Optional[str] = None,
+    end_datetime: Optional[str] = None
 ) -> Dict[str, Any]:
     symbol = validate_symbol(symbol)
 
@@ -535,6 +664,36 @@ def fetch_ideas(
     if sort not in ('popular', 'recent'):
         raise ValidationError("sort must be either 'popular' or 'recent'.")
 
+    # Parse date filters (IST format: DD-MM-YYYY HH:MM)
+    from datetime import datetime as dt, timezone, timedelta
+    IST = timezone(timedelta(hours=5, minutes=30))
+    IST_FORMATS = ["%d-%m-%Y %H:%M", "%d-%m-%Y %H:%M:%S", "%d-%m-%Y"]
+
+    start_ts = None
+    end_ts = None
+
+    if start_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                dt_obj = dt.strptime(start_datetime, fmt)
+                start_ts = dt_obj.replace(tzinfo=IST).timestamp()
+                break
+            except ValueError:
+                continue
+        if start_ts is None:
+            raise ValidationError(f"Invalid start_datetime format: {start_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 09:00')")
+
+    if end_datetime:
+        for fmt in IST_FORMATS:
+            try:
+                dt_obj = dt.strptime(end_datetime, fmt)
+                end_ts = dt_obj.replace(tzinfo=IST).timestamp()
+                break
+            except ValueError:
+                continue
+        if end_ts is None:
+            raise ValidationError(f"Invalid end_datetime format: {end_datetime}. Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 18:00')")
+
     try:
         ideas_scraper = Ideas(
             export_result=False,
@@ -550,6 +709,24 @@ def fetch_ideas(
                 endPage=endPage,
                 sort=sort
             )
+        
+        # Apply date filtering
+        if (start_ts or end_ts) and ideas:
+            filtered_ideas = []
+            for idea in ideas:
+                # idea['timestamp'] is typically a Unix timestamp (int/float)
+                ts = idea.get('timestamp')
+                if ts is not None:
+                    try:
+                        ts = float(ts)
+                        if start_ts and ts < start_ts:
+                            continue
+                        if end_ts and ts > end_ts:
+                            continue
+                    except (ValueError, TypeError):
+                        pass # Keep if timestamp invalid/missing? Or skip? Let's keep to be safe.
+                filtered_ideas.append(idea)
+            ideas = filtered_ideas
         
         if ideas==[]:
             return {
@@ -573,6 +750,9 @@ def fetch_ideas(
             'count': 0,
             'message': f'Failed to fetch ideas: {str(e)}'
         }
+
+
+
 
 
 def fetch_option_chain_data(
@@ -1025,6 +1205,8 @@ def process_option_chain_with_analysis(
             'requested_OTM': no_of_OTM,
             'returned_count': len(flat_options)
         }
+
+
 
         # Add warnings if any
         if warnings:

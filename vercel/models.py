@@ -30,6 +30,8 @@ class NewsHeadlinesRequest(BaseModel):
     exchange: Optional[str] = Field(None, min_length=2, max_length=30, description=f"Optional exchange filter. One of: {', '.join(VALID_EXCHANGES)}... Leave empty for all exchanges.")
     provider: str = Field("all", min_length=3, max_length=20, description=f"News provider filter. Options: {', '.join(VALID_NEWS_PROVIDERS)}... or 'all' for all providers.")
     area: Literal['world', 'americas', 'europe', 'asia', 'oceania', 'africa'] = Field('asia', description="Geographical area filter for news. Default is 'asia'.")
+    start_datetime: Optional[str] = Field(None, description="Filter news from this datetime onwards. IST format: DD-MM-YYYY HH:MM")
+    end_datetime: Optional[str] = Field(None, description="Filter news until this datetime. IST format: DD-MM-YYYY HH:MM")
 
 
 class NewsContentRequest(BaseModel):
@@ -47,12 +49,16 @@ class IdeasRequest(BaseModel):
     startPage: Union[int, str] = Field(1, description="Starting page number for scraping ideas. Accepts int or str (e.g., 1 or '1').")
     endPage: Union[int, str] = Field(1, description="Ending page number for scraping ideas. Accepts int or str (e.g., 1 or '1').")
     sort: Literal['popular', 'recent'] = Field('popular', description="Sorting order for ideas. 'popular' for most liked, 'recent' for latest.")
+    start_datetime: Optional[str] = Field(None, description="Filter ideas from this datetime onwards. IST format: DD-MM-YYYY HH:MM")
+    end_datetime: Optional[str] = Field(None, description="Filter ideas until this datetime. IST format: DD-MM-YYYY HH:MM")
 
 
 class MindsRequest(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). Required.")
     exchange: str = Field(..., min_length=2, max_length=30, description=f"Stock exchange name (e.g., 'NSE'). Must be one of the valid exchanges. Valid examples: {', '.join(VALID_EXCHANGES[:5])}... Use uppercase format.")
     limit: Optional[Union[int, str]] = Field(None, description="Maximum number of discussions to retrieve from first page. If None, fetches all available. Accepts int or str (e.g., 100 or '100').")
+    start_datetime: Optional[str] = Field(None, description="Filter discussions from this datetime onwards. IST format: DD-MM-YYYY HH:MM")
+    end_datetime: Optional[str] = Field(None, description="Filter discussions until this datetime. IST format: DD-MM-YYYY HH:MM")
 
 
 class OptionChainGreeksRequest(BaseModel):

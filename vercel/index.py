@@ -69,6 +69,8 @@ app.add_middleware(
 )
 
 
+
+
 # API Endpoints
 # Each endpoint corresponds to an MCP tool, with the same logic and error handling
 
@@ -127,6 +129,8 @@ async def get_news_headlines_endpoint(request: NewsHeadlinesRequest):
             exchange=request.exchange,
             provider=request.provider,
             area=request.area,
+            start_datetime=request.start_datetime,
+            end_datetime=request.end_datetime,
         )
 
         if not headlines:
@@ -226,6 +230,8 @@ async def get_ideas_endpoint(request: IdeasRequest):
             startPage=startPage,
             endPage=endPage,
             sort=request.sort,
+            start_datetime=request.start_datetime,
+            end_datetime=request.end_datetime
         )
 
         # Encode in TOON format
@@ -260,6 +266,8 @@ async def get_minds_endpoint(request: MindsRequest):
             symbol=symbol,
             exchange=exchange,
             limit=limit,
+            start_datetime=request.start_datetime,
+            end_datetime=request.end_datetime,
         )
 
         toon_data = toon_encode(result)

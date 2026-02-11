@@ -29,6 +29,8 @@ class Settings:
         self.ADMIN_API_KEY = os.getenv("TV_ADMIN_KEY", "admin-secret-123") 
         self.CLIENT_API_KEY = os.getenv("TV_CLIENT_KEY", "client-secret-123")
 
+
+
     def update_cookie(self, new_cookie_string: str):
         """Updates cookie in memory and tries to save to .env file"""
         # 1. Update In-Memory (Immediate effect for all modules)

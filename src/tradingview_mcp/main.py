@@ -16,7 +16,8 @@ from .tradingview_tools import (
     fetch_all_indicators,
     fetch_ideas,
     fetch_minds,
-    process_option_chain_with_analysis
+    process_option_chain_with_analysis,
+    get_current_spot_price
 )
 from .validators import (
     VALID_EXCHANGES, VALID_TIMEFRAMES, VALID_NEWS_PROVIDERS,
@@ -30,6 +31,8 @@ load_dotenv()
 
 # Initialize FastMCP server
 mcp = FastMCP("TradingView-MCP")
+
+
 
 
 @mcp.tool
@@ -133,7 +136,13 @@ def get_news_headlines(
     )] = "all",
     area: Annotated[Literal['world', 'americas', 'europe', 'asia', 'oceania', 'africa'], Field(
         description="Geographical area filter for news. Default is 'asia'."
-    )] = 'asia'
+    )] = 'asia',
+    start_datetime: Annotated[Optional[str], Field(
+        description="Filter news from this datetime onwards. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 09:00'"
+    )] = None,
+    end_datetime: Annotated[Optional[str], Field(
+        description="Filter news until this datetime. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 18:00'"
+    )] = None
 ) -> str:
     """
     Scrape latest news headlines from TradingView for a specific symbol.
@@ -141,6 +150,7 @@ def get_news_headlines(
     Fetches recent news headlines related to a trading symbol from various
     news providers. Returns structured headline data including title, source,
     publication time, and story paths for fetching full content.
+    Supports optional date-time range filtering.
     
     Returns a list of headlines, each containing:
     - title: Headline text
@@ -162,7 +172,9 @@ def get_news_headlines(
             symbol=symbol,
             exchange=exchange,
             provider=provider,
-            area=area
+            area=area,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime
         )
         
         if not headlines:
@@ -328,7 +340,13 @@ def get_ideas(
     )] = 1,
     sort: Annotated[Literal['popular', 'recent'], Field(
         description="Sorting order for ideas. 'popular' for most liked, 'recent' for latest."
-    )] = 'popular'
+    )] = 'popular',
+    start_datetime: Annotated[Optional[str], Field(
+        description="Filter ideas from this datetime onwards. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 09:00'"
+    )] = None,
+    end_datetime: Annotated[Optional[str], Field(
+        description="Filter ideas until this datetime. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 18:00'"
+    )] = None
 ) -> str:
     """
     Scrape trading ideas from TradingView for a specific symbol.
@@ -383,7 +401,9 @@ def get_ideas(
             symbol=symbol,
             startPage=startPage,
             endPage=endPage,
-            sort=sort
+            sort=sort,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime
         )
 
         # Encode ideas in TOON format for token efficiency
@@ -420,6 +440,12 @@ def get_minds(
     )],
     limit: Annotated[Optional[Union[int, str]], Field(
         description="Maximum number of discussions to retrieve from first page. If None, fetches all available. Accepts int or str (e.g., 100 or '100')."
+    )] = None,
+    start_datetime: Annotated[Optional[str], Field(
+        description="Filter discussions from this datetime onwards. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 09:00'"
+    )] = None,
+    end_datetime: Annotated[Optional[str], Field(
+        description="Filter discussions until this datetime. IST format: 'DD-MM-YYYY HH:MM'. Example: '11-02-2026 18:00'"
     )] = None
 ) -> str:
     """
@@ -427,11 +453,14 @@ def get_minds(
 
     Fetches community-generated discussions, questions, and sentiment from TradingView's 
     Minds feature. Returns structured discussion data including author, text, likes, and comments.
+    Supports optional date-time range filtering.
 
     Parameters:
     - symbol (str): Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD')
     - exchange (str): Stock exchange name (e.g., 'NSE', 'NASDAQ')
     - limit (int, optional): Maximum number of results from first page. If None, fetches all available
+    - start_datetime (str, optional): Filter from this datetime (ISO format)
+    - end_datetime (str, optional): Filter until this datetime (ISO format)
 
     Returns a dictionary containing:
     - status: 'success' or 'failed'
@@ -443,6 +472,7 @@ def get_minds(
     Example usage:
     - Get all discussions for Apple: get_minds("AAPL", "NASDAQ")
     - Get 50 discussions for Bitcoin: get_minds("BTCUSD", "BITSTAMP", 50)
+    - Get recent discussions: get_minds("NIFTY", "NSE", start_datetime="2026-02-11T09:00:00")
     """
     try:
         if limit is not None:
@@ -459,7 +489,9 @@ def get_minds(
         result = fetch_minds(
             symbol=symbol,
             exchange=exchange,
-            limit=limit
+            limit=limit,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime
         )
 
         toon_data = toon_encode(result)
@@ -588,6 +620,9 @@ IV (overall/bid/ask), bid/ask/theo prices, intrinsic/time values for CALL/PUT at
             "success": False,
             "message": f"Unexpected error: {str(e)}"
         })
+
+
+
 
 
 def main():

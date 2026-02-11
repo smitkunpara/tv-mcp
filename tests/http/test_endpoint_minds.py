@@ -5,6 +5,8 @@ Mirrors tests/stdio/test_fetch_minds.py
 
 import pytest
 from toon import decode as toon_decode
+from toon.types import DecodeOptions
+from datetime import datetime, timedelta
 
 class TestMindsEndpoint:
     """Test /minds endpoint with real data"""
@@ -37,7 +39,7 @@ class TestMindsEndpoint:
         response = client.post("/minds", json=payload, headers=auth_headers)
         assert response.status_code == 200
         
-        data = toon_decode(response.json()["data"])
+        data = toon_decode(response.json()["data"], DecodeOptions(strict=False))
         assert data['success'] == True
         assert isinstance(data['data'], list)
 
@@ -97,3 +99,22 @@ class TestMindsEndpoint:
         response = client.post("/minds", json=payload, headers=auth_headers)
         assert response.status_code in [400, 422]
         assert "positive integer" in response.json()["detail"]
+
+    def test_minds_date_filtering(self, client, auth_headers):
+        """Test minds filtering with future start date"""
+        future_date = (datetime.now() + timedelta(days=3650)).strftime("%d-%m-%Y %H:%M")
+        
+        payload = {
+            "symbol": "NIFTY",
+            "exchange": "NSE",
+            "limit": 10,
+            "start_datetime": future_date
+        }
+        
+        response = client.post("/minds", json=payload, headers=auth_headers)
+        assert response.status_code == 200
+        
+        data = toon_decode(response.json()["data"])
+        discussions = data.get("data", [])
+        
+        assert len(discussions) == 0
