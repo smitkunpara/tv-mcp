@@ -1,5 +1,5 @@
 """
-Tests for tv_scrapper.core.auth token cache and helpers.
+Tests for tv_mcp.core.auth token cache and helpers.
 
 Uses only deterministic (non-network) behaviors:
 - get_token_info decoding
@@ -11,7 +11,7 @@ import time
 import base64
 import json
 
-from src.tv_scrapper.core.auth import get_token_info, is_jwt_token_valid
+from src.tv_mcp.core.auth import get_token_info, is_jwt_token_valid
 
 
 def _make_jwt(payload: dict, header: dict | None = None) -> str:

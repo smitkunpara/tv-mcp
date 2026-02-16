@@ -1,5 +1,5 @@
 """
-Centralized Configuration Manager for tv_scrapper.
+Centralized Configuration Manager for tv_mcp.
 
 Provides a singleton Settings class that loads environment variables once
 and supports runtime cookie updates.  This is a direct extraction from

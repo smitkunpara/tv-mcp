@@ -1,15 +1,15 @@
 ## Phase 1 Complete: Scaffold & Guardrails
 
-Created new directory structure (`tv_scrapper`, `new_vercel`, `new_test`) with __init__.py stubs and scaffold import smoke tests. Legacy import paths verified stable.
+Created new directory structure (`tv_mcp`, `new_vercel`, `new_test`) with __init__.py stubs and scaffold import smoke tests. Legacy import paths verified stable.
 
 **Files created/changed:**
-- src/tv_scrapper/__init__.py
-- src/tv_scrapper/core/__init__.py
-- src/tv_scrapper/transforms/__init__.py
-- src/tv_scrapper/services/__init__.py
-- src/tv_scrapper/adapters/__init__.py
-- src/tv_scrapper/mcp/__init__.py
-- src/tv_scrapper/mcp/tools/__init__.py
+- src/tv_mcp/__init__.py
+- src/tv_mcp/core/__init__.py
+- src/tv_mcp/transforms/__init__.py
+- src/tv_mcp/services/__init__.py
+- src/tv_mcp/adapters/__init__.py
+- src/tv_mcp/mcp/__init__.py
+- src/tv_mcp/mcp/tools/__init__.py
 - new_vercel/__init__.py
 - new_vercel/routers/__init__.py
 - new_vercel/services/__init__.py
@@ -29,4 +29,4 @@ Created new directory structure (`tv_scrapper`, `new_vercel`, `new_test`) with _
 **Review Status:** APPROVED
 
 **Git Commit Message:**
-feat: scaffold tv_scrapper, new_vercel, new_test directories
+feat: scaffold tv_mcp, new_vercel, new_test directories

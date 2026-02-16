@@ -1,5 +1,5 @@
 """
-Standardized internal response contracts for tv_scrapper services.
+Standardized internal response contracts for tv_mcp services.
 
 All domain service functions return a ``ServiceResponse`` dict that follows
 the tv_scraper v1 response envelope convention:

@@ -1,11 +1,11 @@
-# Plan: TradingView MCP Rebuild with `tv_scrapper`, `new_vercel`, and `new_test`
+# Plan: TradingView MCP Rebuild with `tv_mcp`, `new_vercel`, and `new_test`
 
 **Created:** 2026-02-16  
 **Status:** Ready for Atlas Execution
 
 ## Summary
 
-This plan rebuilds the MCP + HTTP server architecture around a new internal package (`tv_scrapper`) while keeping all current code paths in place as reference and compatibility shims. The migration aligns server internals with `tv_scraper` v1 API conventions (standardized response envelope, renamed classes/methods, split `exchange` + `symbol`, and native options APIs). The rollout is incremental and test-driven: preserve existing behavior first, then modularize and standardize, then switch default entrypoints after parity is proven. The old modules under `src/tradingview_mcp`, `vercel/`, and `tests/` remain intact until explicit removal is requested.
+This plan rebuilds the MCP + HTTP server architecture around a new internal package (`tv_mcp`) while keeping all current code paths in place as reference and compatibility shims. The migration aligns server internals with `tv_scraper` v1 API conventions (standardized response envelope, renamed classes/methods, split `exchange` + `symbol`, and native options APIs). The rollout is incremental and test-driven: preserve existing behavior first, then modularize and standardize, then switch default entrypoints after parity is proven. The old modules under `src/tradingview_mcp`, `vercel/`, and `tests/` remain intact until explicit removal is requested.
 
 ## Context & Analysis
 
@@ -49,11 +49,11 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 ### Phase 1: Baseline Guardrails and New Folder Scaffolding
 
-**Objective:** Introduce `tv_scrapper`, `new_vercel`, and `new_test` directories without breaking existing behavior.
+**Objective:** Introduce `tv_mcp`, `new_vercel`, and `new_test` directories without breaking existing behavior.
 
 **Files to Modify/Create:**
-- `src/tv_scrapper/__init__.py`: package root and compatibility exports.
-- `src/tv_scrapper/README.md`: internal architecture and migration notes.
+- `src/tv_mcp/__init__.py`: package root and compatibility exports.
+- `src/tv_mcp/README.md`: internal architecture and migration notes.
 - `new_vercel/__init__.py`: new HTTP package namespace.
 - `new_test/__init__.py`: new test namespace marker.
 - `new_test/http/` and `new_test/stdio/`: mirrored test directory skeleton.
@@ -61,7 +61,7 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 **Tests to Write:**
 - `new_test/http/test_scaffold_imports.py`: verifies new_vercel importability.
-- `new_test/stdio/test_scaffold_imports.py`: verifies tv_scrapper importability.
+- `new_test/stdio/test_scaffold_imports.py`: verifies tv_mcp importability.
 - `new_test/test_legacy_paths_unchanged.py`: verifies legacy import paths still resolve.
 
 **Steps:**
@@ -72,23 +72,23 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 5. Document migration constraints in README and plan notes.
 
 **Acceptance Criteria:**
-- [ ] `tv_scrapper`, `new_vercel`, and `new_test` directories exist.
+- [ ] `tv_mcp`, `new_vercel`, and `new_test` directories exist.
 - [ ] Legacy paths remain functional and untouched for reference.
 - [ ] New scaffold tests pass.
 - [ ] Existing tests remain runnable with no import break.
 
 ---
 
-### Phase 2: `tv_scrapper` Core Foundation (Config, Validation, Auth, Transforms)
+### Phase 2: `tv_mcp` Core Foundation (Config, Validation, Auth, Transforms)
 
-**Objective:** Extract foundational concerns from monolith into modular `tv_scrapper` core modules.
+**Objective:** Extract foundational concerns from monolith into modular `tv_mcp` core modules.
 
 **Files to Modify/Create:**
-- `src/tv_scrapper/core/settings.py`: settings lifecycle and cookie update support.
-- `src/tv_scrapper/core/validators.py`: centralized validation wrappers and constants.
-- `src/tv_scrapper/core/auth.py`: JWT retrieval/cache helpers.
-- `src/tv_scrapper/core/contracts.py`: normalized internal response dataclasses/types.
-- `src/tv_scrapper/transforms/time.py`, `src/tv_scrapper/transforms/news.py`, `src/tv_scrapper/transforms/ohlc.py`.
+- `src/tv_mcp/core/settings.py`: settings lifecycle and cookie update support.
+- `src/tv_mcp/core/validators.py`: centralized validation wrappers and constants.
+- `src/tv_mcp/core/auth.py`: JWT retrieval/cache helpers.
+- `src/tv_mcp/core/contracts.py`: normalized internal response dataclasses/types.
+- `src/tv_mcp/transforms/time.py`, `src/tv_mcp/transforms/news.py`, `src/tv_mcp/transforms/ohlc.py`.
 - Legacy shim updates:
   - `src/tradingview_mcp/config.py`
   - `src/tradingview_mcp/validators.py`
@@ -102,32 +102,32 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 **Steps:**
 1. Write parity tests comparing old vs new validator/auth utility outcomes (red).
-2. Implement new `tv_scrapper.core` and `tv_scrapper.transforms` modules (green).
+2. Implement new `tv_mcp.core` and `tv_mcp.transforms` modules (green).
 3. Convert legacy modules to thin re-export shims (green).
 4. Keep legacy symbol/function names unchanged.
 5. Refactor duplicated helper logic into shared utilities only if parity tests stay green.
 
 **Acceptance Criteria:**
-- [ ] Core concerns are moved into `tv_scrapper` modules.
+- [ ] Core concerns are moved into `tv_mcp` modules.
 - [ ] Legacy modules remain as compatibility shims with same exports.
 - [ ] No behavior regressions in validation/auth/transform outputs.
 - [ ] All phase tests pass.
 
 ---
 
-### Phase 3: Domain Services in `tv_scrapper` with Standardized Internal Contracts
+### Phase 3: Domain Services in `tv_mcp` with Standardized Internal Contracts
 
 **Objective:** Split monolithic `tradingview_tools.py` into domain services and align internal I/O to `tv_scraper` conventions.
 
 **Files to Modify/Create:**
-- `src/tv_scrapper/services/historical.py`
-- `src/tv_scrapper/services/technicals.py`
-- `src/tv_scrapper/services/news.py`
-- `src/tv_scrapper/services/ideas.py`
-- `src/tv_scrapper/services/minds.py`
-- `src/tv_scrapper/services/options.py`
-- `src/tv_scrapper/services/__init__.py`
-- `src/tv_scrapper/adapters/legacy_response_adapter.py`: maps `tv_scraper` envelope ↔ existing MCP/HTTP expected structure.
+- `src/tv_mcp/services/historical.py`
+- `src/tv_mcp/services/technicals.py`
+- `src/tv_mcp/services/news.py`
+- `src/tv_mcp/services/ideas.py`
+- `src/tv_mcp/services/minds.py`
+- `src/tv_mcp/services/options.py`
+- `src/tv_mcp/services/__init__.py`
+- `src/tv_mcp/adapters/legacy_response_adapter.py`: maps `tv_scraper` envelope ↔ existing MCP/HTTP expected structure.
 - `src/tradingview_mcp/tradingview_tools.py`: replaced by shim delegating to new services while preserving function signatures.
 
 **Tests to Write:**
@@ -156,9 +156,9 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 **Objective:** Replace custom direct request option-chain fetch paths with native `tv_scraper` options methods while preserving analytics output.
 
 **Files to Modify/Create:**
-- `src/tv_scrapper/services/options.py`: use `Options.get_chain_by_expiry` and `Options.get_chain_by_strike` adapters.
-- `src/tv_scrapper/services/options_analytics.py`: retain/customize ITM/OTM filtering and Greeks analytics shape.
-- `src/tv_scrapper/adapters/options_contract_adapter.py`: map native options envelope to legacy option-chain-greeks response contract.
+- `src/tv_mcp/services/options.py`: use `Options.get_chain_by_expiry` and `Options.get_chain_by_strike` adapters.
+- `src/tv_mcp/services/options_analytics.py`: retain/customize ITM/OTM filtering and Greeks analytics shape.
+- `src/tv_mcp/adapters/options_contract_adapter.py`: map native options envelope to legacy option-chain-greeks response contract.
 - `src/tradingview_mcp/tradingview_tools.py`: keep `process_option_chain_with_analysis` signature stable via delegation.
 
 **Tests to Write:**
@@ -181,16 +181,16 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 ---
 
-### Phase 5: MCP Server Rebuild as Modular Adapter over `tv_scrapper`
+### Phase 5: MCP Server Rebuild as Modular Adapter over `tv_mcp`
 
 **Objective:** Rebuild MCP transport layer with cleaner structure while preserving existing tool names and behavior.
 
 **Files to Modify/Create:**
-- `src/tv_scrapper/mcp/server.py`: FastMCP app factory and tool registration.
-- `src/tv_scrapper/mcp/tools/`:
+- `src/tv_mcp/mcp/server.py`: FastMCP app factory and tool registration.
+- `src/tv_mcp/mcp/tools/`:
   - `historical.py`, `news.py`, `technicals.py`, `social.py`, `options.py`
-- `src/tv_scrapper/mcp/serializers.py`: TOON encoder/decoder helper and error serializer.
-- `src/tradingview_mcp/main.py`: compatibility shim delegating to `tv_scrapper.mcp.server` while preserving module execution entrypoint.
+- `src/tv_mcp/mcp/serializers.py`: TOON encoder/decoder helper and error serializer.
+- `src/tradingview_mcp/main.py`: compatibility shim delegating to `tv_mcp.mcp.server` while preserving module execution entrypoint.
 
 **Tests to Write:**
 - `new_test/stdio/test_mcp_tool_registration.py`: tool names and descriptions are preserved.
@@ -199,13 +199,13 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 **Steps:**
 1. Add tests asserting current MCP tool names and return contract (red).
-2. Implement modular MCP server and tool handlers in `tv_scrapper` (green).
+2. Implement modular MCP server and tool handlers in `tv_mcp` (green).
 3. Keep legacy `src/tradingview_mcp/main.py` as shim to avoid breaking scripts/imports.
 4. Centralize shared coercion/error mapping in MCP adapter utilities.
 5. Validate compatibility with existing `tradingview-mcp` script entrypoint.
 
 **Acceptance Criteria:**
-- [ ] MCP server is modularized under `tv_scrapper/mcp`.
+- [ ] MCP server is modularized under `tv_mcp/mcp`.
 - [ ] Existing tool names and usage remain unchanged.
 - [ ] `python -m src.tradingview_mcp.main` compatibility is preserved.
 - [ ] All phase tests pass.
@@ -284,7 +284,7 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 **Objective:** Finalize documentation and packaging so maintainers can switch to the new architecture safely while retaining rollback paths.
 
 **Files to Modify/Create:**
-- `README.md`: add architecture section for `tv_scrapper`, `new_vercel`, `new_test`, and migration status.
+- `README.md`: add architecture section for `tv_mcp`, `new_vercel`, `new_test`, and migration status.
 - `pyproject.toml`: ensure dependency and script entrypoints align with intended runtime package usage.
 - `plans/` execution log/checklist updates.
 - Optional compatibility docs:
@@ -311,8 +311,8 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 ## Open Questions
 
 1. Folder naming target for new internal package?
-   - **Option A:** Use `tv_scrapper` exactly (matches requested folder name).
-   - **Option B:** Use `tv_scraper` for naming consistency with upstream package; keep `tv_scrapper` as alias package.
+   - **Option A:** Use `tv_mcp` exactly (matches requested folder name).
+   - **Option B:** Use `tv_scraper` for naming consistency with upstream package; keep `tv_mcp` as alias package.
    - **Recommendation:** Option A for now (explicit user request), plus alias support if needed later.
 
 2. How strict should backward output compatibility be during transition?
@@ -349,7 +349,7 @@ This plan rebuilds the MCP + HTTP server architecture around a new internal pack
 
 ## Success Criteria
 
-- [ ] New directories exist and are actively used: `src/tv_scrapper`, `new_vercel`, `new_test`.
+- [ ] New directories exist and are actively used: `src/tv_mcp`, `new_vercel`, `new_test`.
 - [ ] Legacy code remains available as reference and compatibility layer (not removed).
 - [ ] MCP tools and HTTP endpoints maintain functional parity with existing behavior.
 - [ ] Native option chain fetching is integrated through `tv_scraper` options APIs.

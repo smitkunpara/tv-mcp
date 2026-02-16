@@ -1,5 +1,5 @@
 """
-Parity tests for tv_scrapper.transforms vs legacy tradingview_mcp.utils.
+Parity tests for tv_mcp.transforms vs legacy tradingview_mcp.utils.
 
 Verifies that time, news, and ohlc transforms produce identical output.
 """
@@ -7,11 +7,11 @@ Verifies that time, news, and ohlc transforms produce identical output.
 import pytest
 
 # New modules
-from src.tv_scrapper.transforms.time import convert_timestamp_to_indian_time as new_ts
-from src.tv_scrapper.transforms.time import parse_ist_datetime_to_ts, parse_ist_datetime
-from src.tv_scrapper.transforms.news import clean_for_json as new_clean
-from src.tv_scrapper.transforms.news import extract_news_body as new_extract
-from src.tv_scrapper.transforms.ohlc import merge_ohlc_with_indicators as new_merge
+from src.tv_mcp.transforms.time import convert_timestamp_to_indian_time as new_ts
+from src.tv_mcp.transforms.time import parse_ist_datetime_to_ts, parse_ist_datetime
+from src.tv_mcp.transforms.news import clean_for_json as new_clean
+from src.tv_mcp.transforms.news import extract_news_body as new_extract
+from src.tv_mcp.transforms.ohlc import merge_ohlc_with_indicators as new_merge
 
 # Legacy
 from src.tradingview_mcp.utils import (

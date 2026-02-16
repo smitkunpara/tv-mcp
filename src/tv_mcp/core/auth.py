@@ -1,5 +1,5 @@
 """
-Authentication module for tv_scrapper.
+Authentication module for tv_mcp.
 
 Handles JWT token extraction from TradingView, token validation/caching,
 and expiry management.  Extracted from legacy auth.py + the token cache

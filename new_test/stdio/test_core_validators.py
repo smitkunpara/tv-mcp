@@ -1,5 +1,5 @@
 """
-Parity tests: tv_scrapper.core.validators vs legacy tradingview_mcp.validators.
+Parity tests: tv_mcp.core.validators vs legacy tradingview_mcp.validators.
 
 Ensures the new validator module produces identical results to the legacy one.
 """
@@ -7,7 +7,7 @@ Ensures the new validator module produces identical results to the legacy one.
 import pytest
 
 # New module
-from src.tv_scrapper.core.validators import (
+from src.tv_mcp.core.validators import (
     VALID_EXCHANGES,
     VALID_TIMEFRAMES,
     VALID_NEWS_PROVIDERS,

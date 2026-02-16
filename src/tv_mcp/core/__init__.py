@@ -1,5 +1,5 @@
 """
-Core infrastructure for tv_scrapper.
+Core infrastructure for tv_mcp.
 
 Modules:
     settings    – centralized configuration singleton

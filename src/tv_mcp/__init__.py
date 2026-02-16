@@ -1,5 +1,5 @@
 """
-tv_scrapper - Modular TradingView MCP service layer.
+tv_mcp - Modular TradingView MCP service layer.
 
 This package provides a clean, domain-driven architecture for the TradingView
 MCP server. It replaces the monolithic tradingview_mcp internals with modular
