@@ -150,3 +150,18 @@ class OptionChainGreeksRequest(BaseModel):
 class NseOptionChainOiRequest(BaseModel):
     symbol: str = Field(..., description="NSE Index symbol (e.g. NIFTY). REQUIRED.")
     expiry_date: str = Field(..., description="NSE expiry format 'DD-MMM-YYYY'. REQUIRED.")
+
+
+# ── RESPONSE MODELS (Needed for valid OpenAPI schemas) ────────────
+
+
+class HealthResponse(BaseModel):
+    status: str = Field(..., description="Status of the service.")
+    service: str = Field(..., description="Name of the service.")
+
+
+class GenericDataResponse(BaseModel):
+    data: Union[str, dict, list] = Field(
+        ...,
+        description="The response data, usually a TOON-encoded string or a structured object.",
+    )

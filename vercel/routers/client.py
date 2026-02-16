@@ -29,6 +29,7 @@ from ..schemas import (
     MindsRequest,
     OptionChainGreeksRequest,
     NseOptionChainOiRequest,
+    GenericDataResponse,
 )
 
 router = APIRouter()
@@ -37,7 +38,11 @@ router = APIRouter()
 # ── POST /historical-data ──────────────────────────────────────────
 
 
-@router.post("/historical-data", dependencies=[Depends(verify_client)])
+@router.post(
+    "/historical-data",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_historical_data_endpoint(request: HistoricalDataRequest) -> dict:
     try:
         result = fetch_historical_data(
@@ -58,7 +63,11 @@ async def get_historical_data_endpoint(request: HistoricalDataRequest) -> dict:
 # ── POST /news-headlines ───────────────────────────────────────────
 
 
-@router.post("/news-headlines", dependencies=[Depends(verify_client)])
+@router.post(
+    "/news-headlines",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_news_headlines_endpoint(request: NewsHeadlinesRequest) -> dict:
     try:
         headlines = fetch_news_headlines(
@@ -84,7 +93,11 @@ async def get_news_headlines_endpoint(request: NewsHeadlinesRequest) -> dict:
 # ── POST /news-content ─────────────────────────────────────────────
 
 
-@router.post("/news-content", dependencies=[Depends(verify_client)])
+@router.post(
+    "/news-content",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_news_content_endpoint(request: NewsContentRequest) -> dict:
     try:
         articles = fetch_news_content(request.story_ids)
@@ -99,7 +112,11 @@ async def get_news_content_endpoint(request: NewsContentRequest) -> dict:
 # ── POST /all-indicators ───────────────────────────────────────────
 
 
-@router.post("/all-indicators", dependencies=[Depends(verify_client)])
+@router.post(
+    "/all-indicators",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_all_indicators_endpoint(request: AllIndicatorsRequest) -> dict:
     try:
         result = fetch_all_indicators(
@@ -118,7 +135,7 @@ async def get_all_indicators_endpoint(request: AllIndicatorsRequest) -> dict:
 # ── POST /ideas ─────────────────────────────────────────────────────
 
 
-@router.post("/ideas", dependencies=[Depends(verify_client)])
+@router.post("/ideas", dependencies=[Depends(verify_client)], response_model=GenericDataResponse)
 async def get_ideas_endpoint(request: IdeasRequest) -> dict:
     try:
         result = fetch_ideas(
@@ -141,7 +158,7 @@ async def get_ideas_endpoint(request: IdeasRequest) -> dict:
 # ── POST /minds ─────────────────────────────────────────────────────
 
 
-@router.post("/minds", dependencies=[Depends(verify_client)])
+@router.post("/minds", dependencies=[Depends(verify_client)], response_model=GenericDataResponse)
 async def get_minds_endpoint(request: MindsRequest) -> dict:
     try:
         result = fetch_minds(
@@ -162,7 +179,11 @@ async def get_minds_endpoint(request: MindsRequest) -> dict:
 # ── POST /option-chain-greeks ──────────────────────────────────────
 
 
-@router.post("/option-chain-greeks", dependencies=[Depends(verify_client)])
+@router.post(
+    "/option-chain-greeks",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_option_chain_greeks_endpoint(request: OptionChainGreeksRequest) -> dict:
     try:
         # Coerce expiry_date to str | None for service signature
@@ -186,7 +207,11 @@ async def get_option_chain_greeks_endpoint(request: OptionChainGreeksRequest) ->
 # ── POST /nse-option-chain-oi ─────────────────────────────────────
 
 
-@router.post("/nse-option-chain-oi", dependencies=[Depends(verify_client)])
+@router.post(
+    "/nse-option-chain-oi",
+    dependencies=[Depends(verify_client)],
+    response_model=GenericDataResponse,
+)
 async def get_nse_option_chain_oi_endpoint(request: NseOptionChainOiRequest) -> dict:
     try:
         result = fetch_nse_option_chain_oi(

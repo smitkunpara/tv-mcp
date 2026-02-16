@@ -8,10 +8,12 @@ import os
 
 from fastapi import APIRouter
 
+from ..schemas import HealthResponse
+
 router = APIRouter()
 
 
-@router.get("/health")
+@router.get("/health", response_model=HealthResponse)
 async def health_check() -> dict:
     """Health check endpoint — no authentication required."""
     return {"status": "healthy", "service": "TradingView HTTP API"}

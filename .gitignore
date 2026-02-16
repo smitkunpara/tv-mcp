@@ -30,3 +30,4 @@ vercel/requirements.txt
 settings.yml
 /temp
 /plans
+.env*.local
