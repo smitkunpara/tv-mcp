@@ -8,13 +8,11 @@ from typing import Any, Dict, Optional
 import contextlib
 import io
 
-try:
-    from tv_scraper import Ideas  # type: ignore[import-not-found]
-except ImportError:
-    from tradingview_scraper.symbols.ideas import Ideas  # type: ignore[import-not-found]
+from tv_scraper import Ideas  # type: ignore[import-not-found]
 
 from ..core.validators import (
     validate_symbol,
+    validate_exchange,
     ValidationError,
 )
 from ..core.settings import settings
@@ -23,6 +21,7 @@ from ..transforms.time import parse_ist_datetime_to_ts
 
 def fetch_ideas(
     symbol: str,
+    exchange: str = "BITSTAMP",
     startPage: int = 1,
     endPage: int = 1,
     sort: str = "popular",
@@ -32,6 +31,7 @@ def fetch_ideas(
     end_datetime: Optional[str] = None,
 ) -> Dict[str, Any]:
     symbol = validate_symbol(symbol)
+    exchange = validate_exchange(exchange)
 
     # Convert string to int if necessary for startPage and endPage
     try:
@@ -79,12 +79,18 @@ def fetch_ideas(
 
         # Capture stdout to prevent print statements from corrupting JSON
         with contextlib.redirect_stdout(io.StringIO()):
-            ideas = ideas_scraper.scrape(
+            ideas_result = ideas_scraper.scrape(
                 symbol=symbol,
-                startPage=startPage,
-                endPage=endPage,
-                sort=sort,
+                exchange=exchange,
+                start_page=startPage,
+                end_page=endPage,
+                sort_by=sort,
             )
+
+        # Unwrap envelope
+        if ideas_result.get("status") == "failed":
+            raise Exception(ideas_result.get("error", "Ideas scrape failed"))
+        ideas = ideas_result.get("data", [])
 
         # Apply date filtering
         if (start_ts or end_ts) and ideas:

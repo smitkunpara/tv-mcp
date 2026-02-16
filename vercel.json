@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "vercel/index.py",
+      "src": "vercel/app.py",
       "use": "@vercel/python",
       "config": {
         "pythonVersion": "3.11",
@@ -14,7 +14,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "vercel/index.py"
+      "dest": "vercel/app.py"
     }
   ]
 }

@@ -2,9 +2,7 @@
 Centralized Configuration Manager for tv_mcp.
 
 Provides a singleton Settings class that loads environment variables once
-and supports runtime cookie updates.  This is a direct extraction from
-the legacy src/tradingview_mcp/config.py – the legacy module will become
-a thin re-export shim.
+and supports runtime cookie updates.
 """
 
 import os

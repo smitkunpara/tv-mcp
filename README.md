@@ -36,7 +36,7 @@ To use the server with MCP-compatible clients (e.g., VS Code with MCP extension)
         "run",
         "python",
         "-m",
-        "src.tradingview_mcp.main"
+        "src.tv_mcp.mcp.server"
       ],
       "env": {
         "TRADINGVIEW_COOKIE": "your_tradingview_cookies_here",
@@ -73,10 +73,10 @@ The project also includes a FastAPI-based HTTP server that provides the same fun
 
 ```bash
 # Using uv (recommended)
-uv run python vercel/index.py
+uv run python vercel/app.py
 
 # Or using python directly
-python vercel/index.py
+python vercel/app.py
 ```
 
 The server will start on `http://localhost:4589` with automatic API documentation at `http://localhost:4589/docs`.
@@ -152,7 +152,7 @@ For Chrome extension installation and usage instructions, see [cookie_updater_ex
 
 Deploy to Vercel to expose the FastAPI endpoints.
 
-- **Entrypoint**: `vercel/index.py`
+- **Entrypoint**: `vercel/app.py`
 - **Env vars**: `TRADINGVIEW_COOKIE`, `VERCEL_URL`, `TV_ADMIN_KEY`, `TV_CLIENT_KEY`
 
 Update-cookies endpoint
@@ -170,7 +170,7 @@ Update-cookies endpoint
 
 Planned tasks and upcoming work:
 
-- **migrate to `tv_scraper` V1.0.0 (on release)** — upgrade to the official `tv_scraper` v1.0.0 when released to simplify scraping and improve long-term maintenance.
+- ~~**migrate to `tv_scraper` V1.0.0**~~ — ✅ Completed. Now uses `tv-scraper` from PyPI with modular architecture.
 - **add paper trading for `stdio` tools (allow AI trading locally)** — implement a local paper-trading mode so the AI can execute simulated trades via the stdio tools without risking real funds.
 
 ## Setting up ChatGPT

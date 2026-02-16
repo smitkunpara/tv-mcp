@@ -9,10 +9,7 @@ import contextlib
 import io
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-try:
-    from tv_scraper.streaming.streamer import Streamer  # type: ignore[import-not-found]
-except ImportError:
-    from tradingview_scraper.symbols.stream import Streamer  # type: ignore[import-not-found]
+from tv_scraper import Streamer  # type: ignore[import-not-found]
 
 from ..core.validators import (
     validate_exchange,
@@ -24,6 +21,13 @@ from ..core.validators import (
 from ..core.auth import get_valid_jwt_token
 from ..core.settings import settings
 from ..transforms.ohlc import merge_ohlc_with_indicators
+
+
+TIMEFRAME_MAP = {
+    "1m": "1", "5m": "5", "15m": "15", "30m": "30",
+    "1h": "60", "2h": "120", "4h": "240",
+    "1d": "1D", "1w": "1W", "1M": "1M",
+}
 
 
 def fetch_historical_data(
@@ -67,14 +71,21 @@ def fetch_historical_data(
 
             # Capture stdout to prevent print statements from corrupting JSON
             with contextlib.redirect_stdout(io.StringIO()):
-                data = streamer.stream(
+                result = streamer.get_candles(
                     exchange=exchange,
                     symbol=symbol,
-                    timeframe=timeframe,
-                    numb_price_candles=numb_price_candles,
+                    timeframe=TIMEFRAME_MAP.get(timeframe, timeframe),
+                    numb_candles=numb_price_candles,
                     indicators=None,
                 )
-            merged_data = merge_ohlc_with_indicators(data)
+
+            # Unwrap envelope
+            if result.get("status") == "failed":
+                raise ValueError(result.get("error", "Streamer returned failure"))
+            data = result.get("data", {})
+            merged_data = merge_ohlc_with_indicators(
+                {"ohlc": data.get("ohlcv", []), "indicator": data.get("indicators", {})}
+            )
             return {
                 "success": True,
                 "data": merged_data,
@@ -104,7 +115,7 @@ def fetch_historical_data(
             for i in range(0, len(indicator_tuples), BATCH_SIZE)
         ]
 
-        combined_response: Dict[str, Any] = {"ohlc": [], "indicator": {}}
+        combined_response: Dict[str, Any] = {"ohlcv": [], "indicators": {}}
         fetch_errors: List[str] = []
 
         def fetch_batch(
@@ -135,13 +146,18 @@ def fetch_historical_data(
 
                 # Capture stdout to prevent print statements from corrupting JSON
                 with contextlib.redirect_stdout(io.StringIO()):
-                    resp = batch_streamer.stream(
+                    result = batch_streamer.get_candles(
                         exchange=exchange,
                         symbol=symbol,
-                        timeframe=timeframe,
-                        numb_price_candles=fetch_candles,
+                        timeframe=TIMEFRAME_MAP.get(timeframe, timeframe),
+                        numb_candles=fetch_candles,
                         indicators=batch_tuples,
                     )
+
+                # Unwrap envelope
+                if result.get("status") == "failed":
+                    return (batch_index, None, f"Batch {batch_index} failed: {result.get('error', 'unknown')}")
+                resp = result.get("data", {})
 
                 return (batch_index, resp, None)
             except Exception as e:
@@ -170,29 +186,32 @@ def fetch_historical_data(
         for batch_index in sorted(batch_results.keys()):
             resp = batch_results[batch_index]
 
-            # Save OHLC from the first response only
-            if not combined_response["ohlc"]:
-                combined_response["ohlc"] = resp.get("ohlc") or []
+            # Save OHLCV from the first response only
+            if not combined_response["ohlcv"]:
+                combined_response["ohlcv"] = resp.get("ohlcv") or []
 
             # Merge indicator arrays: append entries for each tradingview key
-            for ind_key, ind_values in (resp.get("indicator") or {}).items():
-                if ind_key not in combined_response["indicator"]:
-                    combined_response["indicator"][ind_key] = []
+            for ind_key, ind_values in (resp.get("indicators") or {}).items():
+                if ind_key not in combined_response["indicators"]:
+                    combined_response["indicators"][ind_key] = []
                 # Append new values; allow duplicates — merge function will match by timestamp
-                combined_response["indicator"][ind_key].extend(ind_values or [])
+                combined_response["indicators"][ind_key].extend(ind_values or [])
 
             # Collect any errors returned by the streamer resp
             if isinstance(resp, dict) and resp.get("errors"):
                 fetch_errors.extend(resp.get("errors") or [])
 
-        # Ensure we have an ohlc list
-        if not combined_response.get("ohlc"):
+        # Ensure we have an ohlcv list
+        if not combined_response.get("ohlcv"):
             raise ValueError(
                 "Failed to fetch OHLC data from TradingView across batches."
             )
 
         # Do not convert timestamps here; merge_ohlc_with_indicators will handle datetime conversion
-        merged_data = merge_ohlc_with_indicators(combined_response)
+        # merge_ohlc_with_indicators expects keys "ohlc" and "indicator"
+        merged_data = merge_ohlc_with_indicators(
+            {"ohlc": combined_response["ohlcv"], "indicator": combined_response["indicators"]}
+        )
 
         # If merge appended a final entry with _merge_errors, extract them
         merge_errors: List[str] = []

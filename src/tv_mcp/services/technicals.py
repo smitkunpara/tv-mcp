@@ -8,10 +8,7 @@ from typing import Any, Dict
 import contextlib
 import io
 
-try:
-    from tv_scraper import Technicals  # type: ignore[import-not-found]
-except ImportError:
-    from tradingview_scraper.symbols.technicals import Indicators as Technicals  # type: ignore[import-not-found]
+from tv_scraper import Technicals  # type: ignore[import-not-found]
 
 from ..core.validators import (
     validate_exchange,
@@ -42,7 +39,7 @@ def fetch_all_indicators(
                 symbol=symbol,
                 exchange=exchange,
                 timeframe=timeframe,
-                allIndicators=True,
+                all_indicators=True,
             )
 
         # The scraper typically returns a dict with 'status' and 'data'.

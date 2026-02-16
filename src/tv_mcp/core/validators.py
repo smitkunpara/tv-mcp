@@ -1,9 +1,7 @@
 """
 Centralized validators for tv_mcp.
 
-Contains all validation constants and functions.  This is a direct extraction
-from the legacy src/tradingview_mcp/validators.py – the legacy module will
-become a thin re-export shim.
+Contains all validation constants and functions.
 """
 
 from typing import List, Optional, Tuple

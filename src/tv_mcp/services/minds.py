@@ -9,10 +9,7 @@ from typing import Any, Dict, Optional
 import contextlib
 import io
 
-try:
-    from tv_scraper import Minds  # type: ignore[import-not-found]
-except ImportError:
-    from tradingview_scraper.symbols.minds import Minds  # type: ignore[import-not-found]
+from tv_scraper import Minds  # type: ignore[import-not-found]
 
 from ..core.validators import (
     validate_exchange,
@@ -61,10 +58,8 @@ def fetch_minds(
     try:
         minds_scraper = Minds(export_result=False, export_type="json")
 
-        full_symbol = f"{exchange}:{symbol}"
-
         with contextlib.redirect_stdout(io.StringIO()):
-            discussions = minds_scraper.get_minds(symbol=full_symbol, limit=limit)
+            discussions = minds_scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
 
         if discussions.get("status") == "failed":
             return {

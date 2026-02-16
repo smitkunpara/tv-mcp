@@ -24,6 +24,17 @@ async def get_ideas(
             max_length=20,
         ),
     ],
+    exchange: Annotated[
+        str,
+        Field(
+            description=(
+                f"Stock exchange name (e.g., 'NSE', 'NASDAQ', 'BITSTAMP'). "
+                f"Must be one of: {', '.join(VALID_EXCHANGES[:5])}..."
+            ),
+            min_length=2,
+            max_length=30,
+        ),
+    ] = "BITSTAMP",
     startPage: Annotated[
         Union[int, str],
         Field(
@@ -69,6 +80,7 @@ async def get_ideas(
     try:
         result = fetch_ideas(
             symbol=symbol,
+            exchange=exchange,
             startPage=int(startPage) if isinstance(startPage, str) else startPage,
             endPage=int(endPage) if isinstance(endPage, str) else endPage,
             sort=sort,

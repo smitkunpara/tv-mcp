@@ -10,10 +10,7 @@ from typing import Any, Dict, List, Optional
 import contextlib
 import io
 
-try:
-    from tv_scraper import News  # type: ignore[import-not-found]
-except ImportError:
-    from tradingview_scraper.symbols.news import NewsScraper as News  # type: ignore[import-not-found]
+from tv_scraper import News  # type: ignore[import-not-found]
 
 from ..core.validators import (
     validate_symbol,
@@ -68,14 +65,19 @@ def fetch_news_headlines(
         # Capture stdout to prevent print statements from corrupting JSON
         with contextlib.redirect_stdout(io.StringIO()):
             # Retrieve news headlines
-            news_headlines = news_scraper.scrape_headlines(
+            news_result = news_scraper.scrape_headlines(
                 symbol=symbol,
                 exchange=exchange or "",
                 provider=provider_param or "",  # None for 'all'
                 area=area,
                 section="all",
-                sort="latest",
+                sort_by="latest",
             )
+
+        # Unwrap envelope
+        if news_result.get("status") == "failed":
+            raise Exception(news_result.get("error", "Headlines scrape failed"))
+        news_headlines = news_result.get("data", [])
 
         # Clean and format headlines
         cleared_headlines: List[Dict[str, Any]] = []
@@ -148,7 +150,12 @@ def fetch_news_content(
         try:
             # Capture stdout to prevent print statements from corrupting JSON
             with contextlib.redirect_stdout(io.StringIO()):
-                content = news_scraper.scrape_news_content(story_path=story_path)
+                content_result = news_scraper.scrape_content(story_id=story_path)
+
+            # Unwrap envelope
+            if content_result.get("status") == "failed":
+                raise Exception(content_result.get("error", "Content scrape failed"))
+            content = content_result.get("data", {})
 
             # Clean content for JSON serialization
             cleaned_content = clean_for_json(content)

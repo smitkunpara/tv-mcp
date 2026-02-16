@@ -6,7 +6,7 @@ tests/
 
 
 # MCP stdio server (not needed for HTTP API)
-src/tradingview_mcp/main.py
+src/tv_mcp/mcp/server.py
 
 # Sensitive files
 .env

@@ -2,9 +2,7 @@
 tv_mcp - Modular TradingView MCP service layer.
 
 This package provides a clean, domain-driven architecture for the TradingView
-MCP server. It replaces the monolithic tradingview_mcp internals with modular
-services, validators, and transport adapters while preserving backward
-compatibility through shims in the legacy package.
+MCP server with modular services, validators, and transport adapters.
 
 Sub-packages:
     core        – settings, auth/JWT, validators, response contracts
