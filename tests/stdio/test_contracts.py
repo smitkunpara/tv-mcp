@@ -120,10 +120,10 @@ class TestServicesReturnSuccess:
     def test_ideas_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
-        instance.scrape.return_value = [{"title": "t", "timestamp": 1}]
+        instance.scrape.return_value = {"status": "success", "data": []}
         from src.tv_mcp.services.ideas import fetch_ideas
 
-        result = fetch_ideas(symbol="AAPL")
+        result = fetch_ideas(symbol="AAPL", exchange="NASDAQ")
         assert isinstance(result, dict)
         assert "success" in result
 

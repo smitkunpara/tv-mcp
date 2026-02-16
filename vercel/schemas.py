@@ -52,12 +52,12 @@ class HistoricalDataRequest(BaseModel):
 
 
 class NewsHeadlinesRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol for news.")
-    exchange: Optional[str] = Field(
-        None,
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker for news. REQUIRED.")
+    exchange: str = Field(
+        ...,
         min_length=2,
         max_length=30,
-        description=f"Optional exchange filter. One of: {', '.join(VALID_EXCHANGES[:5])}...",
+        description=f"Stock exchange name. REQUIRED. One of: {', '.join(VALID_EXCHANGES[:5])}...",
     )
     provider: str = Field(
         "all",

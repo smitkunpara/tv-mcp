@@ -22,9 +22,8 @@ async def get_historical_data(
         str,
         Field(
             description=(
-                "Stock exchange name (e.g., 'NSE', 'NASDAQ', 'BINANCE'). "
-                f"Must be one of the valid exchanges like {', '.join(VALID_EXCHANGES[:5])}... "
-                "Use uppercase format."
+                "Stock exchange name where the symbol is traded (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED. "
+                f"Must be one of the valid exchanges like {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
             max_length=30,
@@ -34,8 +33,7 @@ async def get_historical_data(
         str,
         Field(
             description=(
-                "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). "
-                "Search online for correct symbol format for your exchange."
+                "Trading symbol/ticker (e.g., 'AAPL', 'BTCUSD', 'NIFTY'). REQUIRED."
             ),
             min_length=1,
             max_length=20,
@@ -45,9 +43,8 @@ async def get_historical_data(
         str,
         Field(
             description=(
-                "Time interval for each candle. Options: "
-                "1m (1 minute), 5m, 15m, 30m, 1h (1 hour), 2h, 4h, "
-                "1d (1 day), 1w (1 week), 1M (1 month)"
+                "Time interval for each price candle. REQUIRED. Options: "
+                "1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1M"
             ),
         ),
     ],
@@ -55,8 +52,8 @@ async def get_historical_data(
         Union[int, str],
         Field(
             description=(
-                "Number of historical candles to fetch (1-5000). "
-                "Accepts int or str. More candles = longer history."
+                "Number of historical candles to fetch (1-5000). REQUIRED. "
+                "More candles provide longer historical context."
             ),
         ),
     ],
@@ -64,18 +61,16 @@ async def get_historical_data(
         List[str],
         Field(
             description=(
-                f"List of technical indicators to include. Options: "
-                f"{', '.join(INDICATOR_MAPPING.keys())}. "
-                "Example: ['RSI', 'MACD', 'CCI', 'BB']. Leave empty for no indicators."
+                f"List of technical indicators to overlay on price data. "
+                f"Options: {', '.join(INDICATOR_MAPPING.keys())}. "
+                "Example: ['RSI', 'MACD']. Leave empty for OHLCV only."
             ),
         ),
     ] = [],  # noqa: B006
 ) -> str:
     """
-    Fetch historical OHLCV data with technical indicators from TradingView.
-
-    Retrieves historical price data (Open, High, Low, Close, Volume) for any
-    trading instrument along with specified technical indicators.
+    Fetch historical OHLCV (Open, High, Low, Close, Volume) data with optional technical indicators.
+    Use this tool to perform technical analysis and identify historical price trends for any symbol.
     """
     try:
         numb_price_candles = (

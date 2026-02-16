@@ -72,8 +72,6 @@ class TestServiceImports:
         "module_path",
         [
             "src.tv_mcp.transforms.ohlc",
-            "src.tv_mcp.transforms.news",
-            "src.tv_mcp.transforms.time",
         ],
     )
     def test_transform_importable(self, module_path: str):

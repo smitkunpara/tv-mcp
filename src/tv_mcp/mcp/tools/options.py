@@ -16,7 +16,7 @@ async def get_option_chain_greeks(
     symbol: Annotated[
         str,
         Field(
-            description="Underlying symbol (e.g., 'NIFTY', 'BANKNIFTY'). Required.",
+            description="Underlying trading symbol (e.g., 'NIFTY', 'AAPL'). REQUIRED.",
             min_length=1,
             max_length=20,
         ),
@@ -25,7 +25,7 @@ async def get_option_chain_greeks(
         str,
         Field(
             description=(
-                "Stock exchange name (e.g., 'NSE'). "
+                "Stock exchange name where the underlying symbol is traded (e.g., 'NSE', 'NASDAQ'). REQUIRED. "
                 f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
@@ -36,10 +36,10 @@ async def get_option_chain_greeks(
         Optional[Union[int, str]],
         Field(
             description=(
-                "Option expiry date:\n"
-                "- 'nearest' (default): NEAREST expiry only\n"
-                "- 'all': ALL expiries grouped by date\n"
-                "- int YYYYMMDD (e.g., 20251202): SPECIFIC expiry\n"
+                "Filter option chain by expiry date:\n"
+                "- 'nearest' (default): Returns the closest future expiry\n"
+                "- 'all': Returns all available expiries\n"
+                "- YYYYMMDD (e.g., 20251202): Returns a specific expiry date\n"
             ),
         ),
     ] = "nearest",
@@ -47,7 +47,7 @@ async def get_option_chain_greeks(
         Union[int, str],
         Field(
             description=(
-                "Number of In-The-Money strikes. Default 5, max 20."
+                "Number of In-The-Money strikes to retrieve. Default 5, max 20."
             ),
         ),
     ] = 5,
@@ -55,16 +55,14 @@ async def get_option_chain_greeks(
         Union[int, str],
         Field(
             description=(
-                "Number of Out-of-The-Money strikes. Default 5, max 20."
+                "Number of Out-of-The-Money strikes to retrieve. Default 5, max 20."
             ),
         ),
     ] = 5,
 ) -> str:
     """
-    Fetch real-time TradingView option chain with full Greeks.
-
-    Returns delta, gamma, theta, vega, rho, IV, bid/ask/theo prices,
-    intrinsic/time values for CALL/PUT at key strikes.
+    Fetch real-time Option Chain data with Greeks analysis (Delta, Gamma, Theta, Vega, Rho, IV).
+    Provides deep visibility into market pricing, volatility expectations, and key support/resistance levels.
     """
     try:
         parsed_itm = int(no_of_ITM) if isinstance(no_of_ITM, str) else no_of_ITM

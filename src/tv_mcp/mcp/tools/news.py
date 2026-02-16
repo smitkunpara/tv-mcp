@@ -21,28 +21,29 @@ async def get_news_headlines(
         str,
         Field(
             description=(
-                "Trading symbol for news (e.g., 'NIFTY', 'AAPL', 'BTC'). Required."
+                "Trading symbol/ticker for news (e.g., 'AAPL', 'BTCUSD'). REQUIRED."
             ),
             min_length=1,
             max_length=20,
         ),
     ],
     exchange: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
-                f"Optional exchange filter. One of: {', '.join(VALID_EXCHANGES[:5])}..."
+                "Stock exchange name where the symbol is traded (e.g., 'NASDAQ', 'BINANCE'). REQUIRED. "
+                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
             max_length=30,
         ),
-    ] = None,
+    ],
     provider: Annotated[
         str,
         Field(
             description=(
-                f"News provider filter. Options: {', '.join(VALID_NEWS_PROVIDERS[:5])}... "
-                "or 'all' for all providers."
+                f"Filter news by provider. Options: {', '.join(VALID_NEWS_PROVIDERS[:5])}... "
+                "or 'all' for all available providers."
             ),
             min_length=3,
             max_length=20,
@@ -50,14 +51,14 @@ async def get_news_headlines(
     ] = "all",
     area: Annotated[
         Literal["world", "americas", "europe", "asia", "oceania", "africa"],
-        Field(description="Geographical area filter for news. Default is 'asia'."),
-    ] = "asia",
+        Field(description="Geographical region filter for news. Use 'world' for global coverage."),
+    ] = "world",
     start_datetime: Annotated[
         Optional[str],
         Field(
             description=(
-                "Filter news from this datetime onwards. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
+                "Return news published AFTER this date-time. "
+                "Format: 'DD-MM-YYYY HH:MM' in IST (Indian Standard Time)."
             ),
         ),
     ] = None,
@@ -65,17 +66,16 @@ async def get_news_headlines(
         Optional[str],
         Field(
             description=(
-                "Filter news until this datetime. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
+                "Return news published BEFORE this date-time. "
+                "Format: 'DD-MM-YYYY HH:MM' in IST (Indian Standard Time)."
             ),
         ),
     ] = None,
 ) -> str:
     """
-    Scrape latest news headlines from TradingView for a specific symbol.
-
-    Returns structured headline data including title, source,
-    publication time, and story paths for fetching full content.
+    Scrape real-time news headlines from TradingView. 
+    Use this to identify recent events affecting a specific symbol. 
+    Returns 'storyPath' which must be used with 'get_news_content' to read full articles.
     """
     try:
         headlines = fetch_news_headlines(
@@ -87,8 +87,14 @@ async def get_news_headlines(
             end_datetime=end_datetime,
         )
         if not headlines:
-            return serialize_success({"headlines": []})
-        return serialize_success({"headlines": headlines})
+            return serialize_success({
+                "message": f"No news headlines found for {exchange}:{symbol} in the specified range.",
+                "headlines": []
+            })
+        return serialize_success({
+            "message": f"Successfully found {len(headlines)} news articles for {exchange}:{symbol}.",
+            "headlines": headlines
+        })
     except ValidationError as e:
         return serialize_error(str(e))
     except Exception as e:

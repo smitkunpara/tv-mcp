@@ -82,8 +82,6 @@ async def get_news_headlines_endpoint(request: NewsHeadlinesRequest) -> dict:
             exchange=request.exchange,
             provider=request.provider,
             area=request.area,
-            start_datetime=request.start_datetime,
-            end_datetime=request.end_datetime,
         )
 
         if not headlines:
@@ -165,8 +163,6 @@ async def get_ideas_endpoint(request: IdeasRequest) -> dict:
             startPage=startPage,
             endPage=endPage,
             sort=request.sort,
-            start_datetime=request.start_datetime,
-            end_datetime=request.end_datetime,
         )
         return {"data": toon_encode(result)}
 
@@ -198,8 +194,6 @@ async def get_minds_endpoint(request: MindsRequest) -> dict:
             symbol=symbol,
             exchange=exchange,
             limit=limit,
-            start_datetime=request.start_datetime,
-            end_datetime=request.end_datetime,
         )
         return {"data": toon_encode(result)}
 

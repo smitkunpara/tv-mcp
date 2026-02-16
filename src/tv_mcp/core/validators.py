@@ -1,64 +1,24 @@
 """
-Centralized validators for tv_mcp.
-
-Contains all validation constants and functions.
+Validators for tv_mcp using tv_scraper's DataValidator.
 """
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from tv_scraper.core.validators import DataValidator
+from tv_scraper.core.exceptions import ValidationError
 
+__all__ = ["validator", "ValidationError", "VALID_EXCHANGES", "VALID_TIMEFRAMES", "VALID_NEWS_PROVIDERS", "VALID_AREAS"]
 
-# ── Exchange constants ──────────────────────────────────────────────
-VALID_EXCHANGES = [
-    "BINANCE", "BINANCEUS", "BITCOKE", "BITFINEX", "BITSTAMP", "BITTREX", "BYBIT",
-    "CAPITALCOM", "CEXIO", "CURRENCYCOM", "EASYMARKETS", "EIGHTCAP", "EXMO",
-    "FOREXCOM", "FTX", "FXCM", "GEMINI", "GLOBALPRIME", "INDEX", "KRAKEN", "OANDA",
-    "OKCOIN", "PEPPERSTONE", "SAXO", "SKILLING", "TIMEX", "TRADESTATION", "VANTAGE",
-    "KUCOIN", "ADX", "ALOR", "AMEX", "ASX", "ATHEX", "BAHRAIN", "BASESWAP", "BCBA",
-    "BCS", "BELEX", "BER", "BET", "BINGX", "BIST", "BISWAP", "BITAZZA", "BITBNS",
-    "BITFLYER", "BITGET", "BITHUMB", "BITKUB", "BITMART", "BITMEX", "BITPANDAPRO",
-    "BITRUE", "BITVAVO", "BIVA", "BLACKBULL", "BLOFIN", "BME", "BMFBOVESPA", "BMV",
-    "BSE", "BSSE", "BTSE", "BVB", "BVC", "BVCV", "BVL", "BVMT", "BX",
-    "CAMELOT", "CAMELOT3ARBITRUM", "CBOE", "CBOT", "CBOT_MINI", "CFFEX",
-    "CITYINDEX", "CME", "CME_MINI", "COINBASE", "COINEX", "COMEX", "COMEX_MINI",
-    "CRYPTO", "CRYPTOCOM", "CRYPTOCAP", "CSE", "CSECY", "CSELK", "CSEMA", "CURVE",
-    "DELTA", "DERIBIT", "DFM", "DJ", "DSEBD", "DUS", "DYDX", "ECONOMICS", "EGX",
-    "EUREX", "EURONEXT", "EUROTLX", "FINRA", "FSE", "FTSEMYX", "FWB", "FX",
-    "FX_IDC", "FXOPEN", "GATEIO", "GETTEX", "GPW", "HAM", "HAN", "HITBTC", "HKEX",
-    "HNX", "HONEYSWAP", "HONEYSWAPPOLYGON", "HOSE", "HSI", "HTX", "HUOBI", "ICEAD",
-    "ICEEUR", "ICESG", "ICEUS", "IDX", "JSE", "KATANA", "KRX", "KSE", "LS", "LSE",
-    "LSIN", "LSX", "LUXSE", "MATBAROFEX", "MCX", "MERCADO", "MEXC", "MGEX", "MIL",
-    "MMFINANCE", "MOEX", "MUN", "MYX", "NAG", "NASDAQ", "NASDAQDUBAI", "NCDEX",
-    "NEO", "NEWCONNECT", "NGM", "NSE", "NSEKE", "NSENG", "NYMEX", "NYMEX_MINI",
-    "NYSE", "NZX", "OKCOIN", "OKX", "OMXCOP", "OMXHEX", "OMXICE", "OMXRSE",
-    "OMXSTO", "OMXTSE", "OMXVSE", "ORCA", "OSE", "OSL", "OTC", "PANCAKESWAP",
-    "PANCAKESWAP3BSC", "PANCAKESWAP3ETH", "PANGOLIN", "PHEMEX", "PHILLIPNOVA",
-    "PIONEX", "POLONIEX", "PSE", "PSECZ", "PSX", "PULSEX", "QSE", "QUICKSWAP",
-    "QUICKSWAP3POLYGONZKEVM", "QUICKSWAP3POLYGON", "RAYDIUM", "RUS", "SAPSE",
-    "SET", "SGX", "SHFE", "SIX", "SP", "SPARKS", "SPOOKYSWAP", "SSE", "SUSHISWAP",
-    "SUSHISWAPPOLYGON", "SWB", "SZSE", "TADAWUL", "TAIFEX", "TASE", "TFEX", "TFX",
-    "THRUSTER3", "TOCOM", "TOKENIZE", "TPEX", "TRADEGATE", "TRADERJOE", "TSE",
-    "TSX", "TSXV", "TVC", "TWSE", "UNISWAP", "UNISWAP3ARBITRUM",
-    "UNISWAP3AVALANCHE", "UNISWAP3BASE", "UNISWAP3BSC", "UNISWAP3ETH",
-    "UNISWAP3OPTIMISM", "UNISWAP3POLYGON", "UPBIT", "UPCOM", "VELODROME",
-    "VERSEETH", "VIE", "VVSFINANCE", "WAGYUSWAP", "WHITEBIT", "WOONETWORK",
-    "XETR", "XEXCHANGE", "ZOOMEX",
-]
+# Singleton instance for the MCP project
+validator = DataValidator()
 
-# ── Timeframe constants ─────────────────────────────────────────────
-VALID_TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "2h", "4h", "1d", "1w", "1M"]
+# Re-expose common lists for MCP tool descriptions
+VALID_EXCHANGES = validator.get_exchanges()
+VALID_TIMEFRAMES = list(validator.get_timeframes().keys())
+VALID_NEWS_PROVIDERS = validator.get_news_providers()
+VALID_AREAS = list(validator.get_areas().keys())
 
-# ── News provider constants ─────────────────────────────────────────
-VALID_NEWS_PROVIDERS = [
-    "the_block", "cointelegraph", "beincrypto", "newsbtc", "dow-jones",
-    "cryptonews", "coindesk", "cryptoglobe", "tradingview", "zycrypto",
-    "todayq", "cryptopotato", "u_today", "cryptobriefing", "coindar",
-    "bitcoin_com", "all",
-]
-
-# ── Area constants ──────────────────────────────────────────────────
-VALID_AREAS = ["world", "americas", "europe", "asia", "oceania", "africa"]
-
-# ── Indicator mapping ──────────────────────────────────────────────
+# Indicator mapping for Streamer (WebSocket)
+# These are kept here as they map common names to TV's internal IDs
 INDICATOR_MAPPING = {
     "RSI": ("STD;RSI", "44.0"),
     "MACD": ("STD;MACD", "38.0"),
@@ -66,7 +26,7 @@ INDICATOR_MAPPING = {
     "BB": ("STD;Bollinger_Bands", "32.0"),
 }
 
-# ── Indicator field mapping ────────────────────────────────────────
+# Mapping internal TV field indices to human-readable names
 INDICATOR_FIELD_MAPPING = {
     "RSI": {
         "2": "Relative_Strength_Index",
@@ -87,81 +47,48 @@ INDICATOR_FIELD_MAPPING = {
         "2": "Bollinger_Bands_bottom_line",
     },
 }
-
 VALID_INDICATORS = list(INDICATOR_MAPPING.keys())
 
 
-# ── Exception ──────────────────────────────────────────────────────
-class ValidationError(Exception):
-    """Custom exception for validation errors."""
-    pass
-
-
-# ── Validator functions ────────────────────────────────────────────
-
 def validate_exchange(exchange: str) -> str:
-    """Validate exchange name and return uppercase form."""
-    exchange_upper = exchange.upper()
-    if exchange_upper not in VALID_EXCHANGES:
-        raise ValidationError(
-            f"Invalid exchange '{exchange}'. Must be one of: "
-            f"{', '.join(VALID_EXCHANGES[:10])}... "
-            f"(and {len(VALID_EXCHANGES) - 10} more)"
-        )
-    return exchange_upper
+    validator.validate_exchange(exchange)
+    return exchange.upper()
+
+
+def validate_symbol(symbol: str) -> str:
+    # Use generic non-empty validation since we don't always have exchange here
+    if not symbol or not symbol.strip():
+        raise ValidationError("Symbol is required and cannot be empty.")
+    return symbol.strip()
 
 
 def validate_timeframe(timeframe: str) -> str:
-    """Validate timeframe string."""
-    if timeframe not in VALID_TIMEFRAMES:
-        raise ValidationError(
-            f"Invalid timeframe '{timeframe}'. Must be one of: "
-            f"{', '.join(VALID_TIMEFRAMES)}"
-        )
+    validator.validate_timeframe(timeframe)
     return timeframe
 
 
 def validate_news_provider(provider: str) -> Optional[str]:
-    """Validate news provider. Returns None for 'all'."""
-    provider_lower = provider.lower()
-    if provider_lower not in VALID_NEWS_PROVIDERS:
-        raise ValidationError(
-            f"Invalid news provider '{provider}'. Must be one of: "
-            f"{', '.join(VALID_NEWS_PROVIDERS)}"
-        )
-    return None if provider_lower == "all" else provider_lower
+    if provider.lower() == "all":
+        return None
+    providers = validator.get_news_providers()
+    if provider not in providers:
+        raise ValidationError(f"Invalid news provider: {provider}. Allowed: {', '.join(providers)}")
+    return provider
 
 
 def validate_area(area: str) -> str:
-    """Validate geographical area."""
-    area_lower = area.lower()
-    if area_lower not in VALID_AREAS:
-        raise ValidationError(
-            f"Invalid area '{area}'. Must be one of: {', '.join(VALID_AREAS)}"
-        )
-    return area_lower
+    areas = validator.get_areas()
+    if area not in areas:
+        raise ValidationError(f"Invalid area: {area}. Allowed: {', '.join(areas.keys())}")
+    return area
 
 
-def validate_indicators(
-    indicators: List[str],
-) -> Tuple[List[str], List[str], List[str], List[str]]:
-    """Validate and map indicator names to TradingView IDs.
-
-    Returns:
-        (indicator_ids, indicator_versions, errors, warnings)
-    """
+def validate_indicators(indicators: List[str]) -> Tuple[List[str], List[str], List[str], List[str]]:
+    """Validate and map indicator names to TradingView IDs for Streamer."""
     indicator_ids: List[str] = []
     indicator_versions: List[str] = []
     errors: List[str] = []
     warnings: List[str] = []
-
-    MAX_INDICATORS_PER_REQUEST = 2
-    if len(indicators) > MAX_INDICATORS_PER_REQUEST:
-        warnings.append(
-            f"More than {MAX_INDICATORS_PER_REQUEST} indicators requested "
-            f"({len(indicators)}). The library will fetch indicators in batches "
-            "of 2 per request to work around free account limits."
-        )
 
     for indicator in indicators:
         indicator_upper = indicator.upper()
@@ -170,35 +97,12 @@ def validate_indicators(
             indicator_ids.append(ind_id)
             indicator_versions.append(ind_version)
         else:
-            errors.append(
-                f"Indicator '{indicator}' not recognized. Valid indicators: "
-                f"{', '.join(VALID_INDICATORS)}"
-            )
+            errors.append(f"Indicator '{indicator}' not recognized.")
 
     return indicator_ids, indicator_versions, errors, warnings
 
 
-def validate_symbol(symbol: Optional[str]) -> str:
-    """Validate symbol is provided and non-empty."""
-    if not symbol or not symbol.strip():
-        raise ValidationError(
-            "Symbol is required. Please provide a valid trading symbol "
-            "(e.g., 'AAPL', 'NIFTY', 'BTCUSD')"
-        )
-    return symbol.strip()
-
-
 def validate_story_paths(story_paths: List[str]) -> List[str]:
-    """Validate story paths list."""
     if not story_paths:
-        raise ValidationError("At least one story path is required")
-    if not isinstance(story_paths, list):
-        raise ValidationError("Story paths must be provided as a list")
-
-    invalid_paths = [p for p in story_paths if not p.startswith("/news/")]
-    if invalid_paths:
-        raise ValidationError(
-            f"Invalid story paths format. All paths must start with '/news/'. "
-            f"Invalid: {invalid_paths[:3]}..."
-        )
+        raise ValidationError("At least one story path is required.")
     return story_paths

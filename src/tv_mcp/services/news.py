@@ -1,137 +1,70 @@
 """
-News headlines and article content service.
-
-Extracted from legacy tradingview_tools.fetch_news_headlines() and
-tradingview_tools.fetch_news_content().
+News service using tv_scraper.
 """
 
-from datetime import datetime as dt, timezone, timedelta
 from typing import Any, Dict, List, Optional
-import contextlib
-import io
-
-from tv_scraper import News  # type: ignore[import-not-found]
-
+from tv_scraper import News
 from ..core.validators import (
     validate_symbol,
     validate_exchange,
     validate_news_provider,
     validate_area,
     validate_story_paths,
-    ValidationError,
 )
 from ..core.settings import settings
-from ..transforms.news import clean_for_json, extract_news_body
 from ..transforms.time import parse_ist_datetime_to_ts
 
 
 def fetch_news_headlines(
     symbol: str,
-    exchange: Optional[str] = None,
+    exchange: str,
     provider: str = "all",
-    area: str = "asia",
+    area: str = "world",
     cookie: Optional[str] = None,
     start_datetime: Optional[str] = None,
     end_datetime: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
+    """Fetch news headlines with optional IST date-time filtering."""
     symbol = validate_symbol(symbol)
-    exchange = validate_exchange(exchange) if exchange else None
+    validated_exchange = validate_exchange(exchange)
     provider_param = validate_news_provider(provider)
-    area = validate_area(area)
+    area_param = validate_area(area)
 
-    # Parse date filters using shared IST parsing
     start_ts = parse_ist_datetime_to_ts(start_datetime) if start_datetime else None
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
-    if start_datetime and start_ts is None:
-        raise ValidationError(
-            f"Invalid start_datetime format: {start_datetime}. "
-            "Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 09:00')"
-        )
+    scraper = News(
+        export_result=False,
+        cookie=cookie or settings.TRADINGVIEW_COOKIE,
+    )
 
-    if end_datetime and end_ts is None:
-        raise ValidationError(
-            f"Invalid end_datetime format: {end_datetime}. "
-            "Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 18:00')"
-        )
+    result = scraper.scrape_headlines(
+        symbol=symbol,
+        exchange=validated_exchange,
+        provider=provider_param,
+        area=area_param,
+        sort_by="latest",
+    )
 
-    try:
-        news_scraper = News(
-            export_result=False,
-            export_type="json",
-            cookie=cookie or settings.TRADINGVIEW_COOKIE,
-        )
-
-        # Capture stdout to prevent print statements from corrupting JSON
-        with contextlib.redirect_stdout(io.StringIO()):
-            # Retrieve news headlines
-            news_result = news_scraper.scrape_headlines(
-                symbol=symbol,
-                exchange=exchange or "",
-                provider=provider_param or "",  # None for 'all'
-                area=area,
-                section="all",
-                sort_by="latest",
-            )
-
-        # Unwrap envelope
-        if news_result.get("status") == "failed":
-            raise Exception(news_result.get("error", "Headlines scrape failed"))
-        news_headlines = news_result.get("data", [])
-
-        # Clean and format headlines
-        cleared_headlines: List[Dict[str, Any]] = []
-        for headline in news_headlines:
-            published = headline.get("published")
-            pub_ts = None
-
-            # Helper to get timestamp
-            if isinstance(published, (int, float)):
-                pub_ts = float(published)
-            elif isinstance(published, str) and published:
-                for fmt in [
-                    "%Y-%m-%dT%H:%M:%S",
-                    "%Y-%m-%dT%H:%M:%SZ",
-                    "%Y-%m-%d %H:%M:%S",
-                    "%b %d, %Y %H:%M",
-                    "%d %b %Y %H:%M",
-                ]:
-                    try:
-                        dt_obj = dt.strptime(published, fmt)
-                        pub_ts = (
-                            dt_obj.replace(tzinfo=timezone.utc).timestamp()
-                            if not dt_obj.tzinfo
-                            else dt_obj.timestamp()
-                        )
-                        break
-                    except ValueError:
-                        continue
-
-            # Date filtering
-            if start_ts or end_ts:
-                if pub_ts is not None:
+    if result.get("status") == "success":
+        headlines = result.get("data", [])
+        
+        # Apply local IST filtering
+        if start_ts or end_ts:
+            filtered = []
+            for h in headlines:
+                pub_ts = h.get("published")
+                if pub_ts:
                     if start_ts and pub_ts < start_ts:
                         continue
                     if end_ts and pub_ts > end_ts:
                         continue
-                else:
-                    # If we can't parse date, keep it to be safe
-                    pass
-
-            cleared_headline = {
-                "title": headline.get("title"),
-                "published": headline.get("published"),
-                "storyPath": headline.get("storyPath"),
-            }
-            cleared_headlines.append(cleared_headline)
-
-        return cleared_headlines
-
-    except Exception as e:
-        raise Exception(
-            f"Failed to fetch news headlines from TradingView: {str(e)}. "
-            f"Please verify symbol '{symbol}' and exchange '{exchange}' are valid."
-        )
+                filtered.append(h)
+            return filtered
+            
+        return headlines
+    
+    raise Exception(result.get("error", "Failed to fetch news headlines. Ensure symbol and exchange are correct."))
 
 
 def fetch_news_content(
@@ -139,48 +72,29 @@ def fetch_news_content(
 ) -> List[Dict[str, Any]]:
     story_paths = validate_story_paths(story_paths)
 
-    news_scraper = News(
+    scraper = News(
         export_result=False,
-        export_type="json",
         cookie=cookie or settings.TRADINGVIEW_COOKIE,
     )
     news_content: List[Dict[str, Any]] = []
 
-    for story_path in story_paths:
-        try:
-            # Capture stdout to prevent print statements from corrupting JSON
-            with contextlib.redirect_stdout(io.StringIO()):
-                content_result = news_scraper.scrape_content(story_id=story_path)
-
-            # Unwrap envelope
-            if content_result.get("status") == "failed":
-                raise Exception(content_result.get("error", "Content scrape failed"))
-            content = content_result.get("data", {})
-
-            # Clean content for JSON serialization
-            cleaned_content = clean_for_json(content)
-
-            # Extract text body
-            body = extract_news_body(cleaned_content)
-
-            news_content.append(
-                {
-                    "success": True,
-                    "title": cleaned_content.get("title", ""),
-                    "body": body,
-                    "story_path": story_path,
-                }
-            )
-
-        except Exception as e:
-            news_content.append(
-                {
-                    "success": False,
-                    "title": "",
-                    "body": "",
-                    "story_path": story_path,
-                    "error": f"Failed to fetch content: {str(e)}",
-                }
-            )
+    for path in story_paths:
+        # tv_scraper expects story_id (which is often the path)
+        result = scraper.scrape_content(story_id=path)
+        
+        if result.get("status") == "success":
+            data = result.get("data", {})
+            news_content.append({
+                "success": True,
+                "title": data.get("title", ""),
+                "body": data.get("description", ""),
+                "story_path": path,
+            })
+        else:
+            news_content.append({
+                "success": False,
+                "story_path": path,
+                "error": result.get("error", "Failed to fetch content"),
+            })
 
     return news_content

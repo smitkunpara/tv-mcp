@@ -21,7 +21,7 @@ async def get_all_indicators(
         str,
         Field(
             description=(
-                "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). Required."
+                "Trading symbol/ticker (e.g., 'AAPL', 'BTCUSD', 'NIFTY'). REQUIRED."
             ),
             min_length=1,
             max_length=20,
@@ -31,9 +31,8 @@ async def get_all_indicators(
         str,
         Field(
             description=(
-                "Stock exchange name (e.g., 'NSE', 'NASDAQ'). "
-                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}... "
-                "Use uppercase format."
+                "Stock exchange name (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED. "
+                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
             max_length=30,
@@ -43,16 +42,15 @@ async def get_all_indicators(
         str,
         Field(
             description=(
-                "Time interval for indicator snapshot. Valid options: "
+                "Time interval for the technical indicator snapshot. REQUIRED. Valid options: "
                 f"{', '.join(VALID_TIMEFRAMES)}"
             ),
         ),
     ] = "1m",
 ) -> str:
     """
-    Return current values for all available technical indicators for a symbol.
-
-    Provides only the latest/current values (not historical series).
+    Retrieve real-time values for ALL available technical indicators for a given symbol.
+    Provides a comprehensive snapshot of current technical signals (Buy/Sell levels, Oscillator values, MAs).
     """
     try:
         result = fetch_all_indicators(

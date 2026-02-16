@@ -18,7 +18,7 @@ async def get_ideas(
         str,
         Field(
             description=(
-                "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD')."
+                "Trading symbol/ticker (e.g., 'BTCUSD', 'TSLA'). REQUIRED."
             ),
             min_length=1,
             max_length=20,
@@ -28,54 +28,47 @@ async def get_ideas(
         str,
         Field(
             description=(
-                f"Stock exchange name (e.g., 'NSE', 'NASDAQ', 'BITSTAMP'). "
+                "Stock exchange name (e.g., 'NASDAQ', 'BITSTAMP'). REQUIRED. "
                 f"Must be one of: {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
             max_length=30,
         ),
-    ] = "BITSTAMP",
+    ],
     startPage: Annotated[
         Union[int, str],
         Field(
-            description="Starting page number for scraping ideas (1-10).",
+            description="Starting page number for scraping (usually 1).",
         ),
     ] = 1,
     endPage: Annotated[
         Union[int, str],
         Field(
-            description="Ending page number for scraping ideas (1-10).",
+            description="Ending page number for scraping (max 10).",
         ),
     ] = 1,
     sort: Annotated[
         Literal["popular", "recent"],
         Field(
-            description="Sorting order for ideas. 'popular' or 'recent'.",
+            description="Sort criteria for ideas. Use 'popular' for validated community sentiment.",
         ),
     ] = "popular",
     start_datetime: Annotated[
         Optional[str],
         Field(
-            description=(
-                "Filter ideas from this datetime onwards. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
-            ),
+            description="Filter ideas published AFTER this date-time. Format: 'DD-MM-YYYY HH:MM' in IST.",
         ),
     ] = None,
     end_datetime: Annotated[
         Optional[str],
         Field(
-            description=(
-                "Filter ideas until this datetime. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
-            ),
+            description="Filter ideas published BEFORE this date-time. Format: 'DD-MM-YYYY HH:MM' in IST.",
         ),
     ] = None,
 ) -> str:
     """
-    Scrape trading ideas from TradingView for a specific symbol.
-
-    Fetches trading ideas with title, author, publication time, and content.
+    Scrape user-published trading ideas from TradingView community. 
+    Analyze these to understand Retail and Pro trader sentiment for a symbol.
     """
     try:
         result = fetch_ideas(
@@ -99,7 +92,7 @@ async def get_minds(
         str,
         Field(
             description=(
-                "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD'). Required."
+                "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL'). REQUIRED."
             ),
             min_length=1,
             max_length=20,
@@ -109,7 +102,7 @@ async def get_minds(
         str,
         Field(
             description=(
-                f"Stock exchange name (e.g., 'NSE', 'NASDAQ'). "
+                "Stock exchange name (e.g., 'NSE', 'NASDAQ'). REQUIRED. "
                 f"Must be one of: {', '.join(VALID_EXCHANGES[:5])}..."
             ),
             min_length=2,
@@ -120,34 +113,26 @@ async def get_minds(
         Optional[Union[int, str]],
         Field(
             description=(
-                "Maximum number of discussions to retrieve. "
-                "If None, fetches all available."
+                "Max number of discussions to retrieve (e.g., 50)."
             ),
         ),
     ] = None,
     start_datetime: Annotated[
         Optional[str],
         Field(
-            description=(
-                "Filter discussions from this datetime onwards. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
-            ),
+            description="Filter discussions created AFTER this date-time. Format: 'DD-MM-YYYY HH:MM' in IST.",
         ),
     ] = None,
     end_datetime: Annotated[
         Optional[str],
         Field(
-            description=(
-                "Filter discussions until this datetime. "
-                "IST format: 'DD-MM-YYYY HH:MM'."
-            ),
+            description="Filter discussions created BEFORE this date-time. Format: 'DD-MM-YYYY HH:MM' in IST.",
         ),
     ] = None,
 ) -> str:
     """
-    Get community discussions (Minds) from TradingView for a specific symbol.
-
-    Fetches community-generated discussions, questions, and sentiment.
+    Get community discussions, questions, and quick sentiment from TradingView Minds.
+    Useful for identifying real-time crowd-sourced insights and trending topics.
     """
     try:
         parsed_limit: Optional[int] = None

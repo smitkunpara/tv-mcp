@@ -1,121 +1,67 @@
 """
-Community discussions (Minds) service.
-
-Extracted from legacy tradingview_tools.fetch_minds().
+Minds service using tv_scraper.
 """
 
-from datetime import datetime as dt
 from typing import Any, Dict, Optional
-import contextlib
-import io
-
-from tv_scraper import Minds  # type: ignore[import-not-found]
-
-from ..core.validators import (
-    validate_exchange,
-    validate_symbol,
-    ValidationError,
-)
-from ..transforms.time import parse_ist_datetime
+from datetime import datetime
+from tv_scraper import Minds
+from ..core.validators import validate_exchange, validate_symbol
+from ..transforms.time import parse_ist_datetime_to_ts
 
 
 def fetch_minds(
     symbol: str,
     exchange: str,
     limit: Optional[int] = None,
-    cookie: Optional[str] = None,
     start_datetime: Optional[str] = None,
     end_datetime: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """Fetch community discussions with optional IST date-time filtering."""
     exchange = validate_exchange(exchange)
     symbol = validate_symbol(symbol)
 
-    # Parse date filters using shared IST parsing
-    start_dt = parse_ist_datetime(start_datetime) if start_datetime else None
-    end_dt = parse_ist_datetime(end_datetime) if end_datetime else None
+    start_ts = parse_ist_datetime_to_ts(start_datetime) if start_datetime else None
+    end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
-    if start_datetime and start_dt is None:
-        raise ValidationError(
-            f"Invalid start_datetime format: {start_datetime}. "
-            "Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 09:00')"
-        )
-    if end_datetime and end_dt is None:
-        raise ValidationError(
-            f"Invalid end_datetime format: {end_datetime}. "
-            "Use IST format: DD-MM-YYYY HH:MM (e.g., '11-02-2026 18:00')"
-        )
+    scraper = Minds(export_result=False)
+    result = scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
 
-    if limit is not None:
-        try:
-            limit = int(limit)
-            if limit <= 0:
-                raise ValidationError(f"limit must be a positive integer. Got: {limit}")
-        except (ValueError, TypeError):
-            raise ValidationError(
-                f"limit must be a valid positive integer or string that can be converted to integer. Got: {limit}"
-            )
-
-    try:
-        minds_scraper = Minds(export_result=False, export_type="json")
-
-        with contextlib.redirect_stdout(io.StringIO()):
-            discussions = minds_scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
-
-        if discussions.get("status") == "failed":
-            return {
-                "success": False,
-                "message": discussions.get(
-                    "error", "Failed to fetch minds discussions"
-                ),
-                "suggestion": "Please verify the symbol and exchange.",
-            }
-
-        # Apply date filtering on discussion data
-        if (start_dt or end_dt) and discussions.get("data"):
-            filtered_data = []
-            for item in discussions["data"]:
-                timestamp = (
-                    item.get("timestamp", "")
-                    or item.get("published", "")
-                    or item.get("created", "")
-                )
-                if timestamp:
+    if result.get("status") == "success":
+        data = result.get("data", [])
+        
+        # Apply local IST filtering
+        if start_ts or end_ts:
+            filtered = []
+            for mind in data:
+                # Minds usually have 'created' as a string like "2026-02-16 20:30:00"
+                # Need to convert to ts for comparison.
+                created_str = mind.get("created")
+                if created_str:
                     try:
-                        pub_dt = None
-                        for fmt in [
-                            "%Y-%m-%dT%H:%M:%S",
-                            "%Y-%m-%dT%H:%M:%SZ",
-                            "%Y-%m-%d %H:%M:%S",
-                            "%b %d, %Y %H:%M",
-                            "%d %b %Y %H:%M",
-                        ]:
-                            try:
-                                pub_dt = dt.strptime(timestamp, fmt)
-                                break
-                            except ValueError:
-                                continue
+                        # tv_scraper formats it as "YYYY-MM-DD HH:MM:SS" (naive in response but originally UTC)
+                        dt_obj = datetime.strptime(created_str, "%Y-%m-%d %H:%M:%S")
+                        # Assuming the scraper's 'created' is UTC normalized by datetime.fromisoformat in Minds._parse_mind
+                        # and then formatted. Let's assume it's a UTC timestamp representation.
+                        import pytz
+                        ts = pytz.UTC.localize(dt_obj).timestamp()
+                        
+                        if start_ts and ts < start_ts:
+                            continue
+                        if end_ts and ts > end_ts:
+                            continue
+                    except ValueError:
+                        pass
+                filtered.append(mind)
+            data = filtered
 
-                        if pub_dt:
-                            if start_dt and pub_dt < start_dt:
-                                continue
-                            if end_dt and pub_dt > end_dt:
-                                continue
-                    except Exception:
-                        pass  # If can't parse, include the item
-                filtered_data.append(item)
-            discussions["data"] = filtered_data
-            discussions["total"] = len(filtered_data)
-
-        # Return with success flag
-        return {"success": True, **discussions}
-
-    except ValidationError:
-        raise
-    except Exception as e:
         return {
-            "success": False,
-            "status": "failed",
-            "data": [],
-            "total": 0,
-            "message": f"Failed to fetch minds discussions: {str(e)}",
+            "success": True, 
+            "data": data,
+            "total": len(data),
+            "message": f"Successfully retrieved {len(data)} community discussions for {exchange}:{symbol}. Analyze these for real-time crowd sentiment."
         }
+    
+    return {
+        "success": False, 
+        "message": f"Failed to fetch minds: {result.get('error')}. Verify that the symbol {symbol} exists on {exchange}."
+    }

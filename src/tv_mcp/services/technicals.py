@@ -1,20 +1,10 @@
 """
-All-indicators snapshot service.
-
-Extracted from legacy tradingview_tools.fetch_all_indicators().
+Technicals service using tv_scraper.
 """
 
 from typing import Any, Dict
-import contextlib
-import io
-
-from tv_scraper import Technicals  # type: ignore[import-not-found]
-
-from ..core.validators import (
-    validate_exchange,
-    validate_symbol,
-    validate_timeframe,
-)
+from tv_scraper import Technicals
+from ..core.validators import validate_exchange, validate_symbol, validate_timeframe
 
 
 def fetch_all_indicators(
@@ -26,32 +16,22 @@ def fetch_all_indicators(
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
 
+    scraper = Technicals(export_result=False)
     try:
-        indicators_scraper = Technicals(
-            export_result=False,
-            export_type="json",
+        result = scraper.scrape(
+            symbol=symbol,
+            exchange=exchange,
+            timeframe=timeframe,
+            all_indicators=True,
         )
 
-        # Capture stdout to prevent print statements from corrupting JSON
-        with contextlib.redirect_stdout(io.StringIO()):
-            # Request all indicators (current snapshot)
-            raw = indicators_scraper.scrape(
-                symbol=symbol,
-                exchange=exchange,
-                timeframe=timeframe,
-                all_indicators=True,
-            )
+        if isinstance(result, dict) and result.get("status") == "success":
+            return {"success": True, "data": result.get("data", {})}
 
-        # The scraper typically returns a dict with 'status' and 'data'.
-        if isinstance(raw, dict) and raw.get("status") in ("success", True):
-            return {"success": True, "data": raw.get("data", {})}
-
-        # Fallback: return raw payload if format unexpected
         return {
             "success": False,
-            "message": f"Unexpected response from Indicators scraper: {type(raw)}",
-            "raw": raw,
+            "message": result.get("error") if isinstance(result, dict) else "Unexpected response format",
         }
-
     except Exception as e:
         return {"success": False, "message": f"Failed to fetch indicators: {str(e)}"}
+
