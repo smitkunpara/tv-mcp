@@ -18,40 +18,33 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_news_headlines(
     symbol: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
                 "Trading symbol/ticker for news (e.g., 'AAPL', 'BTCUSD'). REQUIRED."
             ),
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
     exchange: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
-                "Stock exchange name where the symbol is traded (e.g., 'NASDAQ', 'BINANCE'). REQUIRED. "
-                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
+                "Stock exchange name where the symbol is traded (e.g., 'NASDAQ', 'BINANCE'). REQUIRED."
             ),
-            min_length=2,
-            max_length=30,
         ),
-    ],
+    ] = None,
     provider: Annotated[
         str,
         Field(
             description=(
                 f"Filter news by provider. Options: {', '.join(VALID_NEWS_PROVIDERS[:5])}... "
-                "or 'all' for all available providers."
+                "or 'all' for all available providers. Default is 'all'."
             ),
-            min_length=3,
-            max_length=20,
         ),
     ] = "all",
     area: Annotated[
         Literal["world", "americas", "europe", "asia", "oceania", "africa"],
-        Field(description="Geographical region filter for news. Use 'world' for global coverage."),
+        Field(description="Geographical region filter for news. Default is 'world'."),
     ] = "world",
     start_datetime: Annotated[
         Optional[str],
@@ -74,10 +67,14 @@ async def get_news_headlines(
 ) -> str:
     """
     Scrape real-time news headlines from TradingView. 
-    Use this to identify recent events affecting a specific symbol. 
-    Returns 'storyPath' which must be used with 'get_news_content' to read full articles.
+    Use this to identify recent events affecting a specific symbol.
     """
     try:
+        if not exchange:
+            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NASDAQ').")
+        if not symbol:
+            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'AAPL').")
+
         headlines = fetch_news_headlines(
             symbol=symbol,
             exchange=exchange,
@@ -103,25 +100,21 @@ async def get_news_headlines(
 
 async def get_news_content(
     story_paths: Annotated[
-        List[str],
+        Optional[List[str]],
         Field(
             description=(
-                "List of story paths from news headlines. "
-                "Each path must start with '/news/'. "
-                "Get these from get_news_headlines() results."
+                "List of story paths from news headlines. REQUIRED."
             ),
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
 ) -> str:
     """
     Fetch full news article content using story paths from headlines.
-
-    Retrieves the complete article text for news stories using the story paths
-    obtained from get_news_headlines().
     """
     try:
+        if not story_paths:
+            return serialize_error("Missing REQUIRED field: 'story_paths'. Please provide a list of story paths (e.g., ['/news/...']). Get these from get_news_headlines().")
+
         articles = fetch_news_content(story_paths)
         return serialize_success({"articles": articles})
     except ValidationError as e:

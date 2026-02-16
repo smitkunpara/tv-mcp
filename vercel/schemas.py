@@ -66,7 +66,7 @@ class NewsHeadlinesRequest(BaseModel):
         description=f"News provider filter. Options: {', '.join(VALID_NEWS_PROVIDERS)}.",
     )
     area: Literal["world", "americas", "europe", "asia", "oceania", "africa"] = Field(
-        "asia", description="Geographical area filter for news."
+        "world", description="Geographical area filter for news."
     )
     start_datetime: Optional[str] = Field(
         None, description="Filter news from this datetime onwards. IST format: DD-MM-YYYY HH:MM"
@@ -126,8 +126,8 @@ class MindsRequest(BaseModel):
         max_length=30,
         description=f"Stock exchange name. Valid examples: {', '.join(VALID_EXCHANGES[:5])}...",
     )
-    limit: Optional[Union[int, str]] = Field(
-        None, description="Maximum number of discussions to retrieve."
+    limit: Union[int, str] = Field(
+        1, description="Maximum number of discussions to retrieve. Default is 1 for safety."
     )
     start_datetime: Optional[str] = Field(
         None, description="Filter discussions from this datetime onwards. IST format: DD-MM-YYYY HH:MM"

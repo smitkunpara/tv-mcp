@@ -5,7 +5,7 @@ Options service using tv_scraper.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from tv_scraper import Options, Overview
-from ..core.validators import validate_exchange, validate_symbol, ValidationError
+from tv_mcp.core.validators import validate_exchange, validate_symbol, ValidationError
 
 
 def get_current_spot_price(symbol: str, exchange: str) -> float:

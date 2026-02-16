@@ -4,7 +4,7 @@ Technicals service using tv_scraper.
 
 from typing import Any, Dict
 from tv_scraper import Technicals
-from ..core.validators import validate_exchange, validate_symbol, validate_timeframe
+from tv_mcp.core.validators import validate_exchange, validate_symbol, validate_timeframe
 
 
 def fetch_all_indicators(

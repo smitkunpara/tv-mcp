@@ -4,8 +4,8 @@ OHLC + indicator merge logic.
 
 from typing import Any, Dict, List
 
-from ..core.validators import INDICATOR_MAPPING, INDICATOR_FIELD_MAPPING
-from .time import convert_timestamp_to_indian_time
+from tv_mcp.core.validators import INDICATOR_MAPPING, INDICATOR_FIELD_MAPPING
+from tv_mcp.transforms.time import convert_timestamp_to_indian_time
 
 
 def merge_ohlc_with_indicators(data: Dict) -> List[Dict[str, Any]]:

@@ -4,9 +4,9 @@ Ideas service using tv_scraper.
 
 from typing import Any, Dict, Optional
 from tv_scraper import Ideas
-from ..core.validators import validate_symbol, validate_exchange, ValidationError
-from ..core.settings import settings
-from ..transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.core.validators import validate_symbol, validate_exchange, ValidationError
+from tv_mcp.core.settings import settings
+from tv_mcp.transforms.time import parse_ist_datetime_to_ts
 
 
 def fetch_ideas(

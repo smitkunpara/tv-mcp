@@ -15,42 +15,37 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_ideas(
     symbol: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
                 "Trading symbol/ticker (e.g., 'BTCUSD', 'TSLA'). REQUIRED."
             ),
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
     exchange: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
-                "Stock exchange name (e.g., 'NASDAQ', 'BITSTAMP'). REQUIRED. "
-                f"Must be one of: {', '.join(VALID_EXCHANGES[:5])}..."
+                "Stock exchange name (e.g., 'NASDAQ', 'BITSTAMP'). REQUIRED."
             ),
-            min_length=2,
-            max_length=30,
         ),
-    ],
+    ] = None,
     startPage: Annotated[
         Union[int, str],
         Field(
-            description="Starting page number for scraping (usually 1).",
+            description="Starting page number for scraping. Default is 1 for safety.",
         ),
     ] = 1,
     endPage: Annotated[
         Union[int, str],
         Field(
-            description="Ending page number for scraping (max 10).",
+            description="Ending page number for scraping. Default is 1 for safety.",
         ),
     ] = 1,
     sort: Annotated[
         Literal["popular", "recent"],
         Field(
-            description="Sort criteria for ideas. Use 'popular' for validated community sentiment.",
+            description="Sort criteria for ideas. Default is 'popular'.",
         ),
     ] = "popular",
     start_datetime: Annotated[
@@ -67,10 +62,14 @@ async def get_ideas(
     ] = None,
 ) -> str:
     """
-    Scrape user-published trading ideas from TradingView community. 
-    Analyze these to understand Retail and Pro trader sentiment for a symbol.
+    Scrape user-published trading ideas from TradingView community.
     """
     try:
+        if not exchange:
+            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'BITSTAMP').")
+        if not symbol:
+            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'BTCUSD').")
+
         result = fetch_ideas(
             symbol=symbol,
             exchange=exchange,
@@ -89,34 +88,29 @@ async def get_ideas(
 
 async def get_minds(
     symbol: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
                 "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL'). REQUIRED."
             ),
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
     exchange: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
-                "Stock exchange name (e.g., 'NSE', 'NASDAQ'). REQUIRED. "
-                f"Must be one of: {', '.join(VALID_EXCHANGES[:5])}..."
-            ),
-            min_length=2,
-            max_length=30,
-        ),
-    ],
-    limit: Annotated[
-        Optional[Union[int, str]],
-        Field(
-            description=(
-                "Max number of discussions to retrieve (e.g., 50)."
+                "Stock exchange name (e.g., 'NSE', 'NASDAQ'). REQUIRED."
             ),
         ),
     ] = None,
+    limit: Annotated[
+        Union[int, str],
+        Field(
+            description=(
+                "Max number of discussions to retrieve. Default is 1 for safety."
+            ),
+        ),
+    ] = 1,
     start_datetime: Annotated[
         Optional[str],
         Field(
@@ -131,13 +125,15 @@ async def get_minds(
     ] = None,
 ) -> str:
     """
-    Get community discussions, questions, and quick sentiment from TradingView Minds.
-    Useful for identifying real-time crowd-sourced insights and trending topics.
+    Get community discussions, questions, and sentiment from TradingView Minds.
     """
     try:
-        parsed_limit: Optional[int] = None
-        if limit is not None:
-            parsed_limit = int(limit) if isinstance(limit, str) else limit
+        if not exchange:
+            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NSE').")
+        if not symbol:
+            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'NIFTY').")
+
+        parsed_limit = int(limit) if isinstance(limit, str) else limit
         result = fetch_minds(
             symbol=symbol,
             exchange=exchange,

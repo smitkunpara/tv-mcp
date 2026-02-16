@@ -67,13 +67,26 @@ def validate_timeframe(timeframe: str) -> str:
     return timeframe
 
 
-def validate_news_provider(provider: str) -> Optional[str]:
-    if provider.lower() == "all":
+def validate_news_provider(provider: Optional[str]) -> Optional[str]:
+    if not provider or provider.lower() == "all":
         return None
     providers = validator.get_news_providers()
     if provider not in providers:
-        raise ValidationError(f"Invalid news provider: {provider}. Allowed: {', '.join(providers)}")
+        raise ValidationError(f"Invalid news provider: '{provider}'. Please provide a valid provider name (e.g., 'tradingview', 'dow-jones') or use 'all'.")
     return provider
+
+
+def validate_candle_count(count: Any) -> int:
+    """Validate and coerce candle count with AI-friendly error."""
+    if count is None:
+        raise ValidationError("The 'numb_price_candles' field is REQUIRED. Please specify how many historical candles you need (1-5000).")
+    try:
+        val = int(count)
+        if not (1 <= val <= 5000):
+            raise ValidationError(f"The 'numb_price_candles' must be between 1 and 5000. Received: {val}")
+        return val
+    except (ValueError, TypeError):
+        raise ValidationError(f"Invalid candle count: '{count}'. Must be a valid integer between 1 and 5000.")
 
 
 def validate_area(area: str) -> str:

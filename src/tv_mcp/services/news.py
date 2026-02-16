@@ -4,21 +4,21 @@ News service using tv_scraper.
 
 from typing import Any, Dict, List, Optional
 from tv_scraper import News
-from ..core.validators import (
+from tv_mcp.core.validators import (
     validate_symbol,
     validate_exchange,
     validate_news_provider,
     validate_area,
     validate_story_paths,
 )
-from ..core.settings import settings
-from ..transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.core.settings import settings
+from tv_mcp.transforms.time import parse_ist_datetime_to_ts
 
 
 def fetch_news_headlines(
     symbol: str,
     exchange: str,
-    provider: str = "all",
+    provider: Optional[str] = "all",
     area: str = "world",
     cookie: Optional[str] = None,
     start_datetime: Optional[str] = None,

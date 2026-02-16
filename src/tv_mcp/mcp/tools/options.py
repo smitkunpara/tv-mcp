@@ -14,24 +14,19 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_option_chain_greeks(
     symbol: Annotated[
-        str,
+        Optional[str],
         Field(
             description="Underlying trading symbol (e.g., 'NIFTY', 'AAPL'). REQUIRED.",
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
     exchange: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
-                "Stock exchange name where the underlying symbol is traded (e.g., 'NSE', 'NASDAQ'). REQUIRED. "
-                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
+                "Stock exchange name where the underlying symbol is traded (e.g., 'NSE', 'NASDAQ'). REQUIRED."
             ),
-            min_length=2,
-            max_length=30,
         ),
-    ],
+    ] = None,
     expiry_date: Annotated[
         Optional[Union[int, str]],
         Field(
@@ -62,9 +57,13 @@ async def get_option_chain_greeks(
 ) -> str:
     """
     Fetch real-time Option Chain data with Greeks analysis (Delta, Gamma, Theta, Vega, Rho, IV).
-    Provides deep visibility into market pricing, volatility expectations, and key support/resistance levels.
     """
     try:
+        if not exchange:
+            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NSE').")
+        if not symbol:
+            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'NIFTY').")
+
         parsed_itm = int(no_of_ITM) if isinstance(no_of_ITM, str) else no_of_ITM
         parsed_otm = int(no_of_OTM) if isinstance(no_of_OTM, str) else no_of_OTM
         expiry: Optional[str] = (

@@ -6,16 +6,17 @@ from typing import Any, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tv_scraper import Streamer
-from ..core.validators import (
+from tv_mcp.core.validators import (
     validate_exchange,
     validate_symbol,
     validate_timeframe,
     validate_indicators,
+    validate_candle_count,
     ValidationError,
 )
-from ..core.auth import get_valid_jwt_token
-from ..core.settings import settings
-from ..transforms.ohlc import merge_ohlc_with_indicators
+from tv_mcp.core.auth import get_valid_jwt_token
+from tv_mcp.core.settings import settings
+from tv_mcp.transforms.ohlc import merge_ohlc_with_indicators
 
 
 def fetch_historical_data(
@@ -28,14 +29,7 @@ def fetch_historical_data(
     exchange = validate_exchange(exchange)
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
-
-    try:
-        numb_price_candles = int(numb_price_candles)
-    except (ValueError, TypeError):
-        raise ValidationError("Number of candles must be a valid integer.")
-
-    if not (1 <= numb_price_candles <= 5000):
-        raise ValidationError("Number of candles must be between 1 and 5000.")
+    numb_price_candles = validate_candle_count(numb_price_candles)
 
     indicator_ids, indicator_versions, errors, warnings = validate_indicators(indicators)
     

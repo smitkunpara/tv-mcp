@@ -2,7 +2,7 @@
 MCP tool handler for technical indicators snapshot.
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from pydantic import Field
 
@@ -18,26 +18,21 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_all_indicators(
     symbol: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
                 "Trading symbol/ticker (e.g., 'AAPL', 'BTCUSD', 'NIFTY'). REQUIRED."
             ),
-            min_length=1,
-            max_length=20,
         ),
-    ],
+    ] = None,
     exchange: Annotated[
-        str,
+        Optional[str],
         Field(
             description=(
-                "Stock exchange name (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED. "
-                f"Valid examples: {', '.join(VALID_EXCHANGES[:5])}..."
+                "Stock exchange name (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED."
             ),
-            min_length=2,
-            max_length=30,
         ),
-    ],
+    ] = None,
     timeframe: Annotated[
         str,
         Field(
@@ -50,9 +45,13 @@ async def get_all_indicators(
 ) -> str:
     """
     Retrieve real-time values for ALL available technical indicators for a given symbol.
-    Provides a comprehensive snapshot of current technical signals (Buy/Sell levels, Oscillator values, MAs).
     """
     try:
+        if not exchange:
+            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NASDAQ').")
+        if not symbol:
+            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'AAPL').")
+
         result = fetch_all_indicators(
             exchange=exchange,
             symbol=symbol,

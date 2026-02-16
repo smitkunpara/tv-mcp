@@ -21,7 +21,7 @@ def serialize_success(data: Any) -> str:
 
 
 def serialize_error(error_msg: str, details: Optional[Dict[str, Any]] = None) -> str:
-    """Return a TOON-encoded error dict.
+    """Return a TOON-encoded error dict with AI-friendly guidance.
 
     Args:
         error_msg: Human-readable error description.
@@ -30,6 +30,7 @@ def serialize_error(error_msg: str, details: Optional[Dict[str, Any]] = None) ->
     payload: Dict[str, Any] = {
         "success": False,
         "error": error_msg,
+        "guidance": "Please review the tool documentation and ensure all REQUIRED fields are provided correctly. If the error persists, check if the symbol and exchange pair is valid on TradingView."
     }
     if details is not None:
         payload["details"] = details

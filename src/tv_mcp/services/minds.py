@@ -5,8 +5,8 @@ Minds service using tv_scraper.
 from typing import Any, Dict, Optional
 from datetime import datetime
 from tv_scraper import Minds
-from ..core.validators import validate_exchange, validate_symbol
-from ..transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.core.validators import validate_exchange, validate_symbol
+from tv_mcp.transforms.time import parse_ist_datetime_to_ts
 
 
 def fetch_minds(
