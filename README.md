@@ -2,6 +2,15 @@
 
 A FastMCP server and HTTP API that provides tools to scrape and fetch real-time data from TradingView, including historical prices, technical indicators, news, trading ideas, and options chain analysis. Supports both MCP protocol for AI assistants and REST API for direct integration.
 
+## Roadmap / To-do 🚀
+
+- [x] Migrate to `tv_scraper` V1.0.0 (Modular architecture).
+- [x] Integrate NSE Option Chain OI & PCR data (NIFTY, BANKNIFTY, etc.).
+- [ ] Implement local Paper Trading mode (Allow AI to trade and find accuracy).
+
+> [!WARNING]
+> The **stdio (MCP)** tools are thoroughly tested and confirmed working. However, the **Vercel (HTTP)** endpoints are currently in a beta state and have not been fully verified for all edge cases. Use the REST API with caution.
+
 ## Installation
 
 ### Install with uv (recommended)
@@ -169,13 +178,6 @@ Update-cookies endpoint
     -d '{"cookies": [{"name": "sessionid", "value": "..."}], "source": "extension"}'
   ```
 - No redeploy needed; server updates cookies at runtime.
-
-## Roadmap / To‑do ✅
-
-Planned tasks and upcoming work:
-
-- ~~**migrate to `tv_scraper` V1.0.0**~~ — ✅ Completed. Now uses `tv-scraper` from PyPI with modular architecture.
-- **add paper trading for `stdio` tools (allow AI trading locally)** — implement a local paper-trading mode so the AI can execute simulated trades via the stdio tools without risking real funds.
 
 ## Setting up ChatGPT
 
