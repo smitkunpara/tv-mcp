@@ -1,11 +1,8 @@
 """
 Option chain fetching and analytics service.
 
-Extracted from legacy tradingview_tools.fetch_option_chain_data(),
-get_current_spot_price(), and process_option_chain_with_analysis().
-
-Note: This module still uses direct ``requests`` calls.  Phase 4 will
-replace them with the native tv_scraper Options API.
+Uses the native *tv_scraper* ``Options`` API when available, falling back
+to direct ``requests`` calls.
 """
 
 from datetime import datetime
@@ -20,6 +17,38 @@ from ..core.validators import (
     ValidationError,
 )
 from ..core.settings import settings
+
+# ---------------------------------------------------------------------------
+# Native tv_scraper Options API (optional)
+# ---------------------------------------------------------------------------
+
+try:
+    from tv_scraper.scrapers.market_data import Options as _NativeOptions
+
+    _HAS_NATIVE_OPTIONS = True
+except ImportError:
+    _NativeOptions = None  # type: ignore[assignment,misc]
+    _HAS_NATIVE_OPTIONS = False
+
+_OPTION_COLUMNS: List[str] = [
+    "ask",
+    "bid",
+    "currency",
+    "delta",
+    "expiration",
+    "gamma",
+    "iv",
+    "option-type",
+    "pricescale",
+    "rho",
+    "root",
+    "strike",
+    "theoPrice",
+    "theta",
+    "vega",
+    "bid_iv",
+    "ask_iv",
+]
 
 
 def fetch_option_chain_data(
@@ -201,6 +230,97 @@ def get_current_spot_price(symbol: str, exchange: str) -> Dict[str, Any]:
         return {"success": False, "message": f"Failed to fetch spot price: {str(e)}"}
 
 
+# ---------------------------------------------------------------------------
+# Native wrappers
+# ---------------------------------------------------------------------------
+
+
+def _native_row_to_symbol_entry(
+    row: Dict[str, Any],
+    exchange: str,
+    symbol: str,
+) -> Dict[str, Any]:
+    """Convert a native API data row to the legacy ``{s, f}`` format."""
+    opt_type = row.get("option-type", "")
+    exp = row.get("expiration", "")
+    strike = row.get("strike", "")
+    type_char = "C" if opt_type == "call" else "P"
+    sym_name = f"{exchange}:{symbol}{exp}{type_char}{strike}"
+    values: List[Any] = [row.get(col) for col in _OPTION_COLUMNS]
+    return {"s": sym_name, "f": values}
+
+
+def _fetch_chain_native(
+    symbol: str,
+    exchange: str,
+    expiry_date: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Fetch option chain via the native *tv_scraper* ``Options`` API.
+
+    Returns data in the same envelope as :func:`fetch_option_chain_data` so
+    that downstream processing code works unchanged.
+
+    Falls back to ``{"success": False, ...}`` when the native library is
+    unavailable or the API call fails.
+    """
+    if not _HAS_NATIVE_OPTIONS:
+        return {
+            "success": False,
+            "message": "Native Options API not available",
+            "data": None,
+        }
+
+    try:
+        scraper = _NativeOptions()  # type: ignore[misc]
+        kwargs: Dict[str, Any] = {
+            "exchange": exchange,
+            "symbol": symbol,
+            "root": symbol,
+        }
+        if expiry_date is not None:
+            kwargs["expiration"] = expiry_date
+
+        result: Dict[str, Any] = scraper.get_chain_by_expiry(**kwargs)
+
+        if result.get("status") != "success" or result.get("error") is not None:
+            return {
+                "success": False,
+                "message": f"Native API error: {result.get('error', 'unknown')}",
+                "data": None,
+            }
+
+        native_data: List[Dict[str, Any]] = result.get("data", [])
+
+        symbols_list = [
+            _native_row_to_symbol_entry(item, exchange, symbol)
+            for item in native_data
+        ]
+
+        return {
+            "success": True,
+            "data": {
+                "fields": list(_OPTION_COLUMNS),
+                "symbols": symbols_list,
+            },
+            "total_count": len(symbols_list),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Native fetch failed: {e}",
+            "data": None,
+        }
+
+
+def _fetch_spot_price_native(symbol: str, exchange: str) -> Dict[str, Any]:
+    """Fetch spot price — delegates to :func:`get_current_spot_price`.
+
+    No native *tv_scraper* equivalent exists for spot price retrieval, so
+    this thin wrapper simply calls the requests-based implementation.
+    """
+    return get_current_spot_price(symbol, exchange)
+
+
 def process_option_chain_with_analysis(
     symbol: str,
     exchange: str,
@@ -242,8 +362,10 @@ def process_option_chain_with_analysis(
 
         spot_price = spot_result["spot_price"]
 
-        # Always fetch ALL option chain data (no filtering at API level)
-        option_result = fetch_option_chain_data(symbol, exchange, expiry_date=None)
+        # Try native API first, fall back to legacy requests-based fetch
+        option_result = _fetch_chain_native(symbol, exchange, expiry_date=None)
+        if not option_result["success"]:
+            option_result = fetch_option_chain_data(symbol, exchange, expiry_date=None)
         if not option_result["success"]:
             return {
                 "success": False,
