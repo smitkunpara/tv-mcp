@@ -166,6 +166,13 @@ Update-cookies endpoint
   ```
 - No redeploy needed; server updates cookies at runtime.
 
+## Roadmap / To‑do ✅
+
+Planned tasks and upcoming work:
+
+- **migrate to `tv_scraper` V1.0.0 (on release)** — upgrade to the official `tv_scraper` v1.0.0 when released to simplify scraping and improve long-term maintenance.
+- **add paper trading for `stdio` tools (allow AI trading locally)** — implement a local paper-trading mode so the AI can execute simulated trades via the stdio tools without risking real funds.
+
 ## Setting up ChatGPT
 
 Connect ChatGPT or a custom GPT by calling the endpoints with `X-Client-Key`.
