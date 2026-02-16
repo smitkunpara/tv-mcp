@@ -16,6 +16,93 @@ def get_current_spot_price(symbol: str, exchange: str) -> float:
     raise Exception(f"Failed to fetch spot price: {result.get('error')}")
 
 
+def fetch_nse_option_chain_oi(
+    symbol: str,
+    expiry_date: str
+) -> Dict[str, Any]:
+    """
+    Fetch and clean NSE Option Chain OI data.
+    Supported symbols: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY, NIFTYNXT50.
+    Expiry format: DD-MMM-YYYY (e.g., 19-Feb-2026).
+    """
+    # Validate symbol against supported NSE indices
+    supported = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"]
+    if symbol.upper() not in supported:
+        raise ValidationError(f"Symbol '{symbol}' not supported for NSE OI data. Supported: {', '.join(supported)}")
+
+    url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol.upper()}&expiry={expiry_date}"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.nseindia.com/option-chain",
+    }
+
+    try:
+        import requests
+        # Create session to handle cookies which NSE often requires
+        session = requests.Session()
+        # Hit main page first to get cookies
+        session.get("https://www.nseindia.com/option-chain", headers=headers, timeout=10)
+        
+        response = session.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        raw_data = response.json()
+
+        filtered = raw_data.get("filtered", {})
+        if not filtered or "data" not in filtered:
+            return {"success": False, "message": f"No data found for {symbol} with expiry {expiry_date}."}
+
+        # Clean individual option data
+        def clean_opt(opt):
+            if not opt: return None
+            return {
+                "oi": opt.get("openInterest"),
+                "oi_change": opt.get("changeinOpenInterest"),
+                "vol": opt.get("totalTradedVolume"),
+                "iv": opt.get("impliedVolatility"),
+                "ltp": opt.get("lastPrice"),
+                "change_in_points": opt.get("change"),
+            }
+
+        cleaned_rows = []
+        for row in filtered["data"]:
+            cleaned_rows.append({
+                "strike": row.get("strikePrice"),
+                "CE": clean_opt(row.get("CE")),
+                "PE": clean_opt(row.get("PE")),
+            })
+
+        # Totals and PCR
+        ce_tot = filtered.get("CE", {})
+        pe_tot = filtered.get("PE", {})
+        ce_oi = ce_tot.get("totOI", 0)
+        pe_oi = pe_tot.get("totOI", 0)
+        pcr = round(pe_oi / ce_oi, 4) if ce_oi > 0 else 0
+
+        return {
+            "success": True,
+            "symbol": symbol.upper(),
+            "expiry": expiry_date,
+            "underlying_price": raw_data.get("records", {}).get("underlyingValue"),
+            "timestamp": raw_data.get("records", {}).get("timestamp"),
+            "pcr": pcr,
+            "totals": {
+                "CE": ce_tot,
+                "PE": pe_tot
+            },
+            "data": cleaned_rows,
+            "message": f"Successfully retrieved NSE OI data for {symbol}. PCR is {pcr}. Analyze 'data' for strike-wise OI shifts."
+        }
+
+    except Exception as e:
+        return {
+            "success": False, 
+            "message": f"Failed to fetch NSE OI data: {str(e)}. Ensure the expiry format is DD-MMM-YYYY (e.g., 19-Feb-2026)."
+        }
+
+
 def process_option_chain_with_analysis(
     symbol: str,
     exchange: str,

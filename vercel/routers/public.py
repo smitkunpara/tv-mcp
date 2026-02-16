@@ -58,6 +58,7 @@ async def root() -> dict:
             "/all-indicators",
             "/ideas",
             "/option-chain-greeks",
+            "/nse-option-chain-oi",
             "/privacy-policy",
         ],
     }

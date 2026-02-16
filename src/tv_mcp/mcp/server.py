@@ -9,7 +9,7 @@ from fastmcp import FastMCP
 
 from .tools.historical import get_historical_data
 from .tools.news import get_news_content, get_news_headlines
-from .tools.options import get_option_chain_greeks
+from .tools.options import get_option_chain_greeks, get_nse_option_chain_oi
 from .tools.social import get_ideas, get_minds
 from .tools.technicals import get_all_indicators
 
@@ -24,6 +24,7 @@ mcp.tool()(get_all_indicators)
 mcp.tool()(get_ideas)
 mcp.tool()(get_minds)
 mcp.tool()(get_option_chain_greeks)
+mcp.tool()(get_nse_option_chain_oi)
 
 
 def main() -> None:

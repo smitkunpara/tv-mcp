@@ -61,7 +61,11 @@ async def get_historical_data(
 ) -> str:
     """
     Fetch historical OHLCV data with technical indicators. 
-    Use this to identify historical trends and patterns.
+    Supports stocks, indices, crypto, options (e.g. 'NSE:NIFTY260219C24000'), and futures.
+    Use this to identify trends and patterns across any TradingView-supported asset.
+
+    NOTE: When fetching historical data for Indices (like NIFTY), the volume represents the 
+    underlying market activity, not the option lot volume seen in NSE OI tools.
     """
     try:
         # Pydantic or coercion handled by FastMCP, but we ensure it's int for the service

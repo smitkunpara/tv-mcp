@@ -95,13 +95,11 @@ def fetch_news_content(
             news_content.append({
                 "success": True,
                 "title": data.get("title", ""),
-                "body": data.get("description", ""),
-                "id": sid,
+                "content": data.get("description", ""),
             })
         else:
             news_content.append({
                 "success": False,
-                "id": sid,
                 "error": result.get("error", "Failed to fetch content"),
             })
 

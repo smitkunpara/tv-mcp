@@ -49,6 +49,9 @@ INDICATOR_FIELD_MAPPING = {
 }
 VALID_INDICATORS = list(INDICATOR_MAPPING.keys())
 
+# ── NSE supported symbols ──────────────────────────────────────────
+VALID_NSE_INDICES = ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY"]
+
 
 def validate_exchange(exchange: str) -> str:
     validator.validate_exchange(exchange)

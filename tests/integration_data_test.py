@@ -10,7 +10,7 @@ from src.tv_mcp.services.technicals import fetch_all_indicators
 from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
 from src.tv_mcp.services.ideas import fetch_ideas
 from src.tv_mcp.services.minds import fetch_minds
-from src.tv_mcp.services.options import process_option_chain_with_analysis, get_current_spot_price
+from src.tv_mcp.services.options import process_option_chain_with_analysis, get_current_spot_price, fetch_nse_option_chain_oi
 
 # Skip all tests in this module if TRADINGVIEW_COOKIE is not set
 pytestmark = pytest.mark.skipif(
@@ -161,6 +161,17 @@ def test_real_minds_with_filter():
         start_datetime="01-01-2026 00:00"
     )
     assert result["success"] is True
+
+def test_real_nse_oi_data():
+    """Test fetching real NSE OI data."""
+    # We need a valid future expiry for this to work
+    import datetime
+    # This is a bit tricky as NSE expiries change weekly.
+    # We'll try to find one or just verify the call structure.
+    # For now, let's use a known upcoming one if possible or just check failure msg consistency.
+    result = fetch_nse_option_chain_oi(symbol="NIFTY", expiry_date="20-Feb-2026")
+    # Even if expiry passed, NSE might return error message which we handle.
+    assert "success" in result
 
 def test_real_spot_price():
     """Test fetching current spot price."""

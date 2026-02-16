@@ -7,9 +7,38 @@ from typing import Annotated, Optional, Union
 from pydantic import Field
 
 from src.tv_mcp.core.validators import ValidationError
-from src.tv_mcp.services.options import process_option_chain_with_analysis
+from src.tv_mcp.services.options import process_option_chain_with_analysis, fetch_nse_option_chain_oi
 
 from ..serializers import serialize_error, serialize_success
+
+
+async def get_nse_option_chain_oi(
+    symbol: Annotated[
+        str,
+        Field(
+            description="NSE Index symbol. ONLY supports: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY, NIFTYNXT50. REQUIRED.",
+        ),
+    ],
+    expiry_date: Annotated[
+        str,
+        Field(
+            description="Option expiry date in NSE format 'DD-MMM-YYYY' (e.g., '19-Feb-2026'). REQUIRED.",
+        ),
+    ],
+) -> str:
+    """
+    Fetch real-time Open Interest (OI) data and Put-Call Ratio (PCR) from NSE India.
+    Use this for advanced Indian market sentiment analysis based on OI accumulation and shifts.
+    
+    NOTE: NSE volume data ('vol') represents the number of LOTS traded, not the number of shares.
+    """
+    try:
+        result = fetch_nse_option_chain_oi(symbol=symbol, expiry_date=expiry_date)
+        return serialize_success(result)
+    except ValidationError as e:
+        return serialize_error(str(e))
+    except Exception as e:
+        return serialize_error(f"Unexpected error: {str(e)}")
 
 
 async def get_option_chain_greeks(

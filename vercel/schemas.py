@@ -145,3 +145,8 @@ class OptionChainGreeksRequest(BaseModel):
     )
     no_of_ITM: Union[int, str] = Field(5, description="Number of In-The-Money strikes (1-20).")
     no_of_OTM: Union[int, str] = Field(5, description="Number of Out-of-The-Money strikes (1-20).")
+
+
+class NseOptionChainOiRequest(BaseModel):
+    symbol: str = Field(..., description="NSE Index symbol (e.g. NIFTY). REQUIRED.")
+    expiry_date: str = Field(..., description="NSE expiry format 'DD-MMM-YYYY'. REQUIRED.")

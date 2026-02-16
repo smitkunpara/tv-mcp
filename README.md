@@ -108,39 +108,38 @@ The server provides the following functionality through both MCP tools and HTTP 
 
 ### Data Fetching Tools
 - **get_historical_data / POST /historical-data**: Fetch historical OHLCV data with technical indicators
-  - Supports multiple exchanges (NSE, NASDAQ, BINANCE, etc.)
+  - Supports **stocks, indices, crypto, options** (with specific strike), and **futures**.
+  - NOTE: Index volume represents underlying market activity, not option lot volume.
   - Timeframes: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1M
   - Indicators: RSI, MACD, CCI, Bollinger Bands, and more
-  - Returns TOON-encoded data for token efficiency
-
-- **get_all_indicators / POST /all-indicators**: Get current values for all technical indicators
-  - Real-time indicator snapshots
-  - Supports all major technical indicators
 
 ### News & Content Tools
-- **get_news_headlines / POST /news-headlines**: Get latest news headlines for trading symbols
-  - Filter by exchange, provider, and geographical area
-  - Supports multiple news sources
+- **get_news_headlines / POST /news-headlines**: Get latest news headlines
+  - REQUIRED: `symbol`, `exchange`.
+  - Filter by provider, area, and **IST date-time range**.
+  - Returns `id` for content fetching.
 
 - **get_news_content / POST /news-content**: Fetch full content of news articles
-  - Extract complete article text from story paths
-  - Handles multiple articles in single request
+  - Extract complete article text using `story_ids`.
 
 ### Community & Analysis Tools
-- **get_ideas / POST /ideas**: Scrape trading ideas from TradingView community
-  - Sort by popularity or recency
-  - Paginated results
+- **get_ideas / POST /ideas**: Scrape community trading ideas
+  - REQUIRED: `symbol`, `exchange`.
+  - Filter by popularity, recency, and **IST date-time range**.
 
-- **get_minds / POST /minds**: Get community discussions from TradingView Minds
-  - Fetches discussions, questions, and sentiment
-  - Returns structured data with author, text, likes, and comments
-  - Supports filtering by symbol and exchange
+- **get_minds / POST /minds**: Get community discussions (Minds)
+  - REQUIRED: `symbol`, `exchange`.
+  - Default `limit` is 1 for safety.
+  - Filter by **IST date-time range**.
 
-- **get_option_chain_greeks / POST /option-chain-greeks**: Get detailed options chain with Greeks and analytics
-  - Complete Greeks calculation (Delta, Gamma, Theta, Vega, Rho)
-  - Implied Volatility analysis
-  - Bid/ask spreads and theoretical pricing
-  - Supports multiple expiries and strike filtering
+- **get_option_chain_greeks / POST /option-chain-greeks**: Standard option chain analysis
+  - Greeks (Delta, Gamma, etc.) and Implied Volatility via TradingView data.
+
+- **get_nse_option_chain_oi / POST /nse-option-chain-oi**: NSE-specific OI & PCR analysis
+  - Direct data from NSE India for indices (**NIFTY, BANKNIFTY**, etc.).
+  - Calculates **PCR (Put-Call Ratio)** and cleans data for sentiment analysis.
+  - NOTE: Volume ('vol') is reported in **LOTS**.
+  - Expiry format: `DD-MMM-YYYY` (e.g., 19-Feb-2026).
 
 ### Additional Endpoints
 - **GET /privacy-policy**: View privacy policy and disclaimer
