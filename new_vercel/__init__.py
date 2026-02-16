@@ -13,4 +13,6 @@ Sub-packages:
     app       – FastAPI application factory
 """
 
-__all__: list[str] = []
+from .app import app, create_app
+
+__all__: list[str] = ["app", "create_app"]

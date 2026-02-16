@@ -11,7 +11,7 @@ import json
 import re
 import threading
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import jwt as pyjwt
 import requests
@@ -20,7 +20,7 @@ from .settings import settings
 
 
 # ── Token cache (module-level, thread-safe) ─────────────────────────
-_token_cache: Dict[str, object] = {
+_token_cache: Dict[str, Any] = {
     "token": None,
     "expiry": 0,
 }
@@ -135,12 +135,14 @@ def get_valid_jwt_token(force_refresh: bool = False) -> str:
     with _token_lock:
         current_time = int(time.time())
 
+        cached_token = _token_cache["token"]
+        cached_expiry: int = int(_token_cache["expiry"])
         if (
             not force_refresh
-            and _token_cache["token"]
-            and _token_cache["expiry"] > (current_time + 60)
+            and cached_token is not None
+            and cached_expiry > (current_time + 60)
         ):
-            return _token_cache["token"]
+            return str(cached_token)
 
         try:
             token = extract_jwt_token()
