@@ -24,6 +24,12 @@ cp .env.example .env  # Copy and edit with your TradingView cookies
 
 To use the server with MCP-compatible clients (e.g., VS Code with MCP extension):
 
+### Run MCP server locally
+
+```bash
+uv run python server.py
+```
+
 1. Create `.vscode/mcp.json` in your workspace root.
 2. Add the following configuration (replace with your values):
 
@@ -35,8 +41,7 @@ To use the server with MCP-compatible clients (e.g., VS Code with MCP extension)
       "args": [
         "run",
         "python",
-        "-m",
-        "src.tv_mcp.mcp.server"
+        "server.py"
       ],
       "env": {
         "TRADINGVIEW_COOKIE": "your_tradingview_cookies_here",
