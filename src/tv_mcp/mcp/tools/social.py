@@ -15,21 +15,21 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_ideas(
     symbol: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
                 "Trading symbol/ticker (e.g., 'BTCUSD', 'TSLA'). REQUIRED."
             ),
         ),
-    ] = None,
+    ],
     exchange: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
                 "Stock exchange name (e.g., 'NASDAQ', 'BITSTAMP'). REQUIRED."
             ),
         ),
-    ] = None,
+    ],
     startPage: Annotated[
         Union[int, str],
         Field(
@@ -65,11 +65,6 @@ async def get_ideas(
     Scrape user-published trading ideas from TradingView community.
     """
     try:
-        if not exchange:
-            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'BITSTAMP').")
-        if not symbol:
-            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'BTCUSD').")
-
         result = fetch_ideas(
             symbol=symbol,
             exchange=exchange,
@@ -88,21 +83,21 @@ async def get_ideas(
 
 async def get_minds(
     symbol: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
                 "Trading symbol/ticker (e.g., 'NIFTY', 'AAPL'). REQUIRED."
             ),
         ),
-    ] = None,
+    ],
     exchange: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
                 "Stock exchange name (e.g., 'NSE', 'NASDAQ'). REQUIRED."
             ),
         ),
-    ] = None,
+    ],
     limit: Annotated[
         Union[int, str],
         Field(
@@ -128,11 +123,6 @@ async def get_minds(
     Get community discussions, questions, and sentiment from TradingView Minds.
     """
     try:
-        if not exchange:
-            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NSE').")
-        if not symbol:
-            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'NIFTY').")
-
         parsed_limit = int(limit) if isinstance(limit, str) else limit
         result = fetch_minds(
             symbol=symbol,

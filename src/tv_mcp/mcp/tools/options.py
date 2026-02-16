@@ -6,7 +6,7 @@ from typing import Annotated, Optional, Union
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import VALID_EXCHANGES, ValidationError
+from src.tv_mcp.core.validators import ValidationError
 from src.tv_mcp.services.options import process_option_chain_with_analysis
 
 from ..serializers import serialize_error, serialize_success
@@ -14,19 +14,19 @@ from ..serializers import serialize_error, serialize_success
 
 async def get_option_chain_greeks(
     symbol: Annotated[
-        Optional[str],
+        str,
         Field(
             description="Underlying trading symbol (e.g., 'NIFTY', 'AAPL'). REQUIRED.",
         ),
-    ] = None,
+    ],
     exchange: Annotated[
-        Optional[str],
+        str,
         Field(
             description=(
                 "Stock exchange name where the underlying symbol is traded (e.g., 'NSE', 'NASDAQ'). REQUIRED."
             ),
         ),
-    ] = None,
+    ],
     expiry_date: Annotated[
         Optional[Union[int, str]],
         Field(
@@ -59,11 +59,6 @@ async def get_option_chain_greeks(
     Fetch real-time Option Chain data with Greeks analysis (Delta, Gamma, Theta, Vega, Rho, IV).
     """
     try:
-        if not exchange:
-            return serialize_error("Missing REQUIRED field: 'exchange'. Please specify the exchange (e.g., 'NSE').")
-        if not symbol:
-            return serialize_error("Missing REQUIRED field: 'symbol'. Please specify the ticker (e.g., 'NIFTY').")
-
         parsed_itm = int(no_of_ITM) if isinstance(no_of_ITM, str) else no_of_ITM
         parsed_otm = int(no_of_OTM) if isinstance(no_of_OTM, str) else no_of_OTM
         expiry: Optional[str] = (

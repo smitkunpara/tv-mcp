@@ -24,10 +24,10 @@ PAYLOADS: dict[str, dict] = {
         "timeframe": "1d",
         "numb_price_candles": 10,
     },
-    "/news-headlines": {"symbol": "BTC"},
-    "/news-content": {"story_paths": ["/news/s1"]},
+    "/news-headlines": {"symbol": "BTC", "exchange": "CRYPTO"},
+    "/news-content": {"story_ids": ["/news/s1"]},
     "/all-indicators": {"symbol": "AAPL", "exchange": "NASDAQ", "timeframe": "1m"},
-    "/ideas": {"symbol": "BTCUSD"},
+    "/ideas": {"symbol": "BTCUSD", "exchange": "BITSTAMP"},
     "/minds": {"symbol": "NIFTY", "exchange": "NSE"},
     "/option-chain-greeks": {"symbol": "NIFTY", "exchange": "NSE"},
 }
@@ -141,7 +141,7 @@ class TestEmptyHeadlinesSentinel:
             mock_svc.return_value = []
             resp = client.post(
                 "/news-headlines",
-                json={"symbol": "BTC"},
+                json={"symbol": "BTC", "exchange": "CRYPTO"},
                 headers=auth_headers,
             )
 

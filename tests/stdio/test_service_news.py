@@ -17,15 +17,16 @@ class TestNewsIntegration:
         assert isinstance(headlines, list)
         if headlines:
             assert "title" in headlines[0]
-            assert "storyPath" in headlines[0]
+            assert "id" in headlines[0]
+            assert "storyPath" not in headlines[0]
 
     def test_fetch_real_content(self):
         headlines = fetch_news_headlines(symbol="BTC", exchange="CRYPTO")
         if not headlines:
             pytest.skip("No headlines found for BTC")
         
-        path = headlines[0]["storyPath"]
-        content = fetch_news_content([path])
+        sid = headlines[0]["id"]
+        content = fetch_news_content([sid])
         assert len(content) == 1
         assert content[0]["success"] is True
         assert len(content[0]["body"]) > 0

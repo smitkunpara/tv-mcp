@@ -231,7 +231,7 @@ class TestHistoricalDataEndpoint:
         )
         assert resp.status_code == 200
         call_kwargs = mock_fetch.call_args
-        assert call_kwargs[1]["numb_price_candles"] == 50 or call_kwargs[0][3] == 50
+        assert call_kwargs[1]["numb_price_candles"] == 50
 
 
 class TestNewsHeadlinesEndpoint:
@@ -264,7 +264,7 @@ class TestNewsHeadlinesEndpoint:
         mock_fetch.return_value = []
         resp = client.post(
             "/news-headlines",
-            json={"symbol": "BTC"},
+            json={"symbol": "BTC", "exchange": "BINANCE"},
             headers=client_headers,
         )
         assert resp.status_code == 200
@@ -280,7 +280,7 @@ class TestNewsHeadlinesEndpoint:
         mock_fetch.side_effect = RuntimeError("Network error")
         resp = client.post(
             "/news-headlines",
-            json={"symbol": "BTC"},
+            json={"symbol": "BTC", "exchange": "BINANCE"},
             headers=client_headers,
         )
         assert resp.status_code == 500
@@ -299,7 +299,7 @@ class TestNewsContentEndpoint:
         mock_fetch.return_value = [{"title": "Article", "body": "text"}]
         resp = client.post(
             "/news-content",
-            json={"story_paths": ["/news/story1"]},
+            json={"story_ids": ["story1"]},
             headers=client_headers,
         )
         assert resp.status_code == 200
@@ -316,7 +316,7 @@ class TestNewsContentEndpoint:
         mock_fetch.return_value = articles
         resp = client.post(
             "/news-content",
-            json={"story_paths": ["/news/s1"]},
+            json={"story_ids": ["s1"]},
             headers=client_headers,
         )
         assert resp.json()["data"] == toon_encode({"articles": articles})
@@ -370,7 +370,7 @@ class TestIdeasEndpoint:
         mock_fetch.return_value = {"success": True, "ideas": [{"title": "Buy"}]}
         resp = client.post(
             "/ideas",
-            json={"symbol": "BTCUSD"},
+            json={"symbol": "BTCUSD", "exchange": "BITSTAMP"},
             headers=client_headers,
         )
         assert resp.status_code == 200
@@ -387,7 +387,7 @@ class TestIdeasEndpoint:
         mock_fetch.return_value = {"success": True}
         resp = client.post(
             "/ideas",
-            json={"symbol": "BTCUSD", "startPage": "2", "endPage": "3"},
+            json={"symbol": "BTCUSD", "exchange": "BITSTAMP", "startPage": "2", "endPage": "3"},
             headers=client_headers,
         )
         assert resp.status_code == 200

@@ -21,7 +21,6 @@ from src.tv_mcp.core.validators import (
     validate_area,
     validate_indicators,
     validate_symbol,
-    validate_story_paths,
 )
 
 
@@ -126,13 +125,3 @@ class TestValidatorFunctions:
     def test_symbol_empty(self):
         with pytest.raises(ValidationError):
             validate_symbol("")
-
-    # ── validate_story_paths ──
-    def test_story_paths_valid(self):
-        paths = ["/news/article-1", "/news/article-2"]
-        result = validate_story_paths(paths)
-        assert result == paths
-
-    def test_story_paths_empty(self):
-        with pytest.raises(ValidationError):
-            validate_story_paths([])

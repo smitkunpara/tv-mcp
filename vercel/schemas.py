@@ -10,7 +10,6 @@ from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 from src.tv_mcp.core.validators import (
-    VALID_EXCHANGES,
     VALID_TIMEFRAMES,
     VALID_NEWS_PROVIDERS,
     INDICATOR_MAPPING,
@@ -22,32 +21,25 @@ class HistoricalDataRequest(BaseModel):
         ...,
         min_length=2,
         max_length=30,
-        description=(
-            f"Stock exchange name (e.g., 'NSE', 'NASDAQ', 'BINANCE'). "
-            f"Must be one of the valid exchanges like {', '.join(VALID_EXCHANGES[:5])}... "
-            "Use uppercase format."
-        ),
+        description="Stock exchange name. REQUIRED.",
     )
     symbol: str = Field(
         ...,
         min_length=1,
         max_length=20,
-        description="Trading symbol/ticker (e.g., 'NIFTY', 'AAPL', 'BTCUSD').",
+        description="Trading symbol/ticker. REQUIRED.",
     )
     timeframe: str = Field(
         ...,
-        description=(
-            "Time interval for each candle. Options: "
-            "1m (1 minute), 5m, 15m, 30m, 1h (1 hour), 2h, 4h, 1d (1 day), 1w (1 week), 1M (1 month)"
-        ),
+        description="Time interval for each candle. REQUIRED.",
     )
     numb_price_candles: Union[int, str] = Field(
         ...,
-        description="Number of historical candles to fetch (1-5000). Accepts int or str.",
+        description="Number of historical candles to fetch (1-5000). REQUIRED.",
     )
     indicators: List[str] = Field(
         default=[],
-        description=f"List of technical indicators. Options: {', '.join(INDICATOR_MAPPING.keys())}.",
+        description="List of technical indicators.",
     )
 
 
@@ -57,13 +49,13 @@ class NewsHeadlinesRequest(BaseModel):
         ...,
         min_length=2,
         max_length=30,
-        description=f"Stock exchange name. REQUIRED. One of: {', '.join(VALID_EXCHANGES[:5])}...",
+        description="Stock exchange name. REQUIRED.",
     )
     provider: str = Field(
         "all",
         min_length=3,
         max_length=20,
-        description=f"News provider filter. Options: {', '.join(VALID_NEWS_PROVIDERS)}.",
+        description="News provider filter.",
     )
     area: Literal["world", "americas", "europe", "asia", "oceania", "africa"] = Field(
         "world", description="Geographical area filter for news."
@@ -77,35 +69,35 @@ class NewsHeadlinesRequest(BaseModel):
 
 
 class NewsContentRequest(BaseModel):
-    story_paths: List[str] = Field(
+    story_ids: List[str] = Field(
         ...,
         min_length=1,
         max_length=20,
-        description="List of story paths from news headlines. Each path must start with '/news/'.",
+        description="List of story IDs from news headlines. REQUIRED.",
     )
 
 
 class AllIndicatorsRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker.")
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker. REQUIRED.")
     exchange: str = Field(
         ...,
         min_length=2,
         max_length=30,
-        description=f"Stock exchange name. Valid examples: {', '.join(VALID_EXCHANGES[:5])}...",
+        description="Stock exchange name. REQUIRED.",
     )
     timeframe: str = Field(
         "1m",
-        description=f"Time interval for indicator snapshot. Valid options: {', '.join(VALID_TIMEFRAMES)}",
+        description="Time interval for indicator snapshot.",
     )
 
 
 class IdeasRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker.")
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker. REQUIRED.")
     exchange: str = Field(
-        "BITSTAMP",
+        ...,
         min_length=2,
         max_length=30,
-        description=f"Stock exchange name. Valid examples: {', '.join(VALID_EXCHANGES[:5])}...",
+        description="Stock exchange name. REQUIRED.",
     )
     startPage: Union[int, str] = Field(1, description="Starting page number (1-10).")
     endPage: Union[int, str] = Field(1, description="Ending page number (1-10).")
@@ -119,12 +111,12 @@ class IdeasRequest(BaseModel):
 
 
 class MindsRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker.")
+    symbol: str = Field(..., min_length=1, max_length=20, description="Trading symbol/ticker. REQUIRED.")
     exchange: str = Field(
         ...,
         min_length=2,
         max_length=30,
-        description=f"Stock exchange name. Valid examples: {', '.join(VALID_EXCHANGES[:5])}...",
+        description="Stock exchange name. REQUIRED.",
     )
     limit: Union[int, str] = Field(
         1, description="Maximum number of discussions to retrieve. Default is 1 for safety."
@@ -138,12 +130,12 @@ class MindsRequest(BaseModel):
 
 
 class OptionChainGreeksRequest(BaseModel):
-    symbol: str = Field(..., min_length=1, max_length=20, description="Underlying symbol.")
+    symbol: str = Field(..., min_length=1, max_length=20, description="Underlying symbol. REQUIRED.")
     exchange: str = Field(
         ...,
         min_length=2,
         max_length=30,
-        description=f"Stock exchange name. Valid examples: {', '.join(VALID_EXCHANGES[:5])}...",
+        description="Stock exchange name. REQUIRED.",
     )
     expiry_date: Optional[Union[int, str]] = Field(
         "nearest",

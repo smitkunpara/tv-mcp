@@ -113,9 +113,3 @@ def validate_indicators(indicators: List[str]) -> Tuple[List[str], List[str], Li
             errors.append(f"Indicator '{indicator}' not recognized.")
 
     return indicator_ids, indicator_versions, errors, warnings
-
-
-def validate_story_paths(story_paths: List[str]) -> List[str]:
-    if not story_paths:
-        raise ValidationError("At least one story path is required.")
-    return story_paths

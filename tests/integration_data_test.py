@@ -71,17 +71,18 @@ def test_real_news_headlines():
     assert isinstance(headlines, list)
     if headlines:
         assert "title" in headlines[0]
-        assert "storyPath" in headlines[0]
+        assert "id" in headlines[0]
+        assert "storyPath" not in headlines[0]
 
 def test_real_news_content():
-    """Test fetching full news content for a real story path."""
-    # First get a real headline to get a valid story path
+    """Test fetching full news content for a real story ID."""
+    # First get a real headline to get a valid story ID
     headlines = fetch_news_headlines(symbol="BTC", exchange="CRYPTO")
     if not headlines:
         pytest.skip("No headlines found for BTC to test content")
     
-    story_path = headlines[0]["storyPath"]
-    content = fetch_news_content([story_path])
+    story_id = headlines[0]["id"]
+    content = fetch_news_content([story_id])
     
     assert len(content) == 1
     assert content[0]["success"] is True
@@ -150,8 +151,6 @@ def test_real_ideas_with_filter():
         start_datetime="01-01-2026 00:00"
     )
     assert result["success"] is True
-    # If there are ideas, they should all be after the start_datetime
-    # but since it's real data, we just verify the call succeeds
 
 def test_real_minds_with_filter():
     """Test fetching minds with IST date filtering."""
