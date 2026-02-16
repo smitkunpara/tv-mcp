@@ -29,3 +29,4 @@ vercel/requirements.txt
 .vercel
 settings.yml
 /temp
+/plans
