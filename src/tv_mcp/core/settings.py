@@ -47,7 +47,6 @@ class Settings:
         self.TRAILING_SL_ENABLED: bool = os.getenv("TRAILING_SL_ENABLED", "false").lower() == "true"
         self.TRAILING_SL_STEP_PCT: float = float(os.getenv("TRAILING_SL_STEP_PCT", "0.5"))
         self.MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "10"))
-        self.SCREENER_POLL_INTERVAL: int = int(os.getenv("SCREENER_POLL_INTERVAL_SECONDS", "5"))
 
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""

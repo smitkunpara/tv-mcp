@@ -9,9 +9,11 @@ Only closed trades are persisted to SQLite; open positions are in-memory.
 import asyncio
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
+from tv_scraper.streaming import Streamer
 from tv_mcp.core.settings import settings
 from tv_mcp.core.validators import ValidationError
 from tv_mcp.transforms.time import IST_TZ
@@ -140,6 +142,32 @@ class PaperTradingEngine:
         )
         conn.commit()
         conn.close()
+
+    async def _stream_price_async(self, exchange: str, symbol: str):
+        """Async generator wrapper for sync Streamer.stream_realtime_price().
+        
+        Runs the blocking streaming generator in a thread pool executor
+        to avoid blocking the asyncio event loop.
+        """
+        loop = asyncio.get_event_loop()
+        
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Create streamer and get the sync generator
+            def create_stream():
+                streamer = Streamer(export_result=False)
+                return streamer.stream_realtime_price(exchange, symbol)
+            
+            price_stream = await loop.run_in_executor(executor, create_stream)
+            
+            # Convert sync iteration to async
+            while True:
+                try:
+                    update = await loop.run_in_executor(executor, lambda: next(price_stream))
+                    yield update
+                except StopIteration:
+                    break
+                except Exception:
+                    break
 
     # ── Risk Management ───────────────────────────────────────────
 
@@ -274,155 +302,154 @@ class PaperTradingEngine:
     # ── Screener / Position Monitoring ────────────────────────────
 
     async def _screener_loop(self, order_id: int) -> None:
-        """Background task that monitors a single position for SL/target hits."""
-        poll_interval = settings.SCREENER_POLL_INTERVAL
-
-        while True:
-            await asyncio.sleep(poll_interval)
-
-            # Get current position snapshot
-            async with self._positions_lock:
-                pos = self._positions.get(order_id)
-                if pos is None:
-                    return  # position was closed manually
-
-            # Fetch current price
-            try:
-                from tv_mcp.services.options import get_current_spot_price
-
-                current_price = get_current_spot_price(pos.symbol, pos.exchange)
-            except Exception:
-                continue  # retry next cycle
-
-            # ── Check SL / Target / Trailing SL ──
-            hit: Optional[str] = None
-
-            if pos.side == "BUY":
-                if current_price <= pos.current_sl:
-                    hit = (
-                        "SL_HIT"
-                        if pos.current_sl == pos.stop_loss
-                        else "TRAILING_SL_HIT"
-                    )
-                elif current_price >= pos.target:
-                    hit = "TARGET_HIT"
-                elif pos.trailing_sl and current_price > pos.entry_price:
-                    new_sl = round(
-                        current_price * (1 - settings.TRAILING_SL_STEP_PCT / 100), 2
-                    )
-                    if new_sl > pos.current_sl:
-                        pos.current_sl = new_sl
-            else:  # SELL
-                if current_price >= pos.current_sl:
-                    hit = (
-                        "SL_HIT"
-                        if pos.current_sl == pos.stop_loss
-                        else "TRAILING_SL_HIT"
-                    )
-                elif current_price <= pos.target:
-                    hit = "TARGET_HIT"
-                elif pos.trailing_sl and current_price < pos.entry_price:
-                    new_sl = round(
-                        current_price * (1 + settings.TRAILING_SL_STEP_PCT / 100), 2
-                    )
-                    if new_sl < pos.current_sl:
-                        pos.current_sl = new_sl
-
-            # ── Check price alerts for this symbol ──
-            async with self._alerts_lock:
-                triggered: List[int] = []
-                for aid, alert in list(self._alerts.items()):
-                    if (
-                        alert["type"] == "price"
-                        and alert["symbol"] == pos.symbol
-                    ):
-                        if (
-                            alert["direction"] == "above"
-                            and current_price >= alert["price"]
-                        ) or (
-                            alert["direction"] == "below"
-                            and current_price <= alert["price"]
-                        ):
-                            triggered.append(aid)
-
-                for aid in triggered:
-                    alert = self._alerts.pop(aid)
-                    self._alert_ids.discard(aid)
-                    await self._alert_queue.put(
-                        {
-                            "source": "price_alert",
-                            "alert_id": aid,
-                            "symbol": alert["symbol"],
-                            "price": alert["price"],
-                            "direction": alert["direction"],
-                            "current_price": current_price,
-                            "message": (
-                                f"Price alert triggered: {alert['symbol']} "
-                                f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
-                                f"{alert['price']} (current: {current_price})"
-                            ),
-                        }
-                    )
-
-            # ── Close position if SL / Target hit ──
-            if hit:
-                await self._close_position_internal(order_id, current_price, hit)
+        """Background task: monitor one position for SL / target hits via streaming."""
+        # Get position info
+        async with self._positions_lock:
+            pos = self._positions.get(order_id)
+            if pos is None:
                 return
 
-    async def _price_only_monitor(self, symbol: str, exchange: str) -> None:
-        """Lightweight background task that only checks price alerts (no position)."""
-        poll_interval = settings.SCREENER_POLL_INTERVAL
+        # Stream price updates
+        try:
+            async for update in self._stream_price_async(pos.exchange, pos.symbol):
+                # Check if position still exists
+                async with self._positions_lock:
+                    pos = self._positions.get(order_id)
+                    if pos is None:
+                        return  # position was closed manually
 
-        while True:
-            await asyncio.sleep(poll_interval)
+                current_price = update.get("price")
+                if current_price is None:
+                    continue
 
-            # Check if any price alerts remain for this symbol
-            async with self._alerts_lock:
-                has_alerts = any(
-                    a["type"] == "price" and a["symbol"] == symbol
-                    for a in self._alerts.values()
-                )
-                if not has_alerts:
-                    return  # no more alerts — stop task
+                # ── Check SL / Target / Trailing SL ──
+                hit: Optional[str] = None
 
-            try:
-                from tv_mcp.services.options import get_current_spot_price
+                if pos.side == "BUY":
+                    if current_price <= pos.current_sl:
+                        hit = (
+                            "SL_HIT"
+                            if pos.current_sl == pos.stop_loss
+                            else "TRAILING_SL_HIT"
+                        )
+                    elif current_price >= pos.target:
+                        hit = "TARGET_HIT"
+                    elif pos.trailing_sl and current_price > pos.entry_price:
+                        new_sl = round(
+                            current_price * (1 - settings.TRAILING_SL_STEP_PCT / 100), 2
+                        )
+                        if new_sl > pos.current_sl:
+                            pos.current_sl = new_sl
+                else:  # SELL
+                    if current_price >= pos.current_sl:
+                        hit = (
+                            "SL_HIT"
+                            if pos.current_sl == pos.stop_loss
+                            else "TRAILING_SL_HIT"
+                        )
+                    elif current_price <= pos.target:
+                        hit = "TARGET_HIT"
+                    elif pos.trailing_sl and current_price < pos.entry_price:
+                        new_sl = round(
+                            current_price * (1 + settings.TRAILING_SL_STEP_PCT / 100), 2
+                        )
+                        if new_sl < pos.current_sl:
+                            pos.current_sl = new_sl
 
-                current_price = get_current_spot_price(symbol, exchange)
-            except Exception:
-                continue
-
-            async with self._alerts_lock:
-                triggered: List[int] = []
-                for aid, alert in list(self._alerts.items()):
-                    if alert["type"] == "price" and alert["symbol"] == symbol:
+                # ── Check price alerts for this symbol ──
+                async with self._alerts_lock:
+                    triggered: List[int] = []
+                    for aid, alert in list(self._alerts.items()):
                         if (
-                            alert["direction"] == "above"
-                            and current_price >= alert["price"]
-                        ) or (
-                            alert["direction"] == "below"
-                            and current_price <= alert["price"]
+                            alert["type"] == "price"
+                            and alert["symbol"] == pos.symbol
                         ):
-                            triggered.append(aid)
+                            if (
+                                alert["direction"] == "above"
+                                and current_price >= alert["price"]
+                            ) or (
+                                alert["direction"] == "below"
+                                and current_price <= alert["price"]
+                            ):
+                                triggered.append(aid)
 
-                for aid in triggered:
-                    alert = self._alerts.pop(aid)
-                    self._alert_ids.discard(aid)
-                    await self._alert_queue.put(
-                        {
-                            "source": "price_alert",
-                            "alert_id": aid,
-                            "symbol": alert["symbol"],
-                            "price": alert["price"],
-                            "direction": alert["direction"],
-                            "current_price": current_price,
-                            "message": (
-                                f"Price alert triggered: {alert['symbol']} "
-                                f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
-                                f"{alert['price']} (current: {current_price})"
-                            ),
-                        }
+                    for aid in triggered:
+                        alert = self._alerts.pop(aid)
+                        self._alert_ids.discard(aid)
+                        await self._alert_queue.put(
+                            {
+                                "source": "price_alert",
+                                "alert_id": aid,
+                                "symbol": alert["symbol"],
+                                "price": alert["price"],
+                                "direction": alert["direction"],
+                                "current_price": current_price,
+                                "message": (
+                                    f"Price alert triggered: {alert['symbol']} "
+                                    f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
+                                    f"{alert['price']} (current: {current_price})"
+                                ),
+                            }
+                        )
+
+                # ── Close position if SL / Target hit ──
+                if hit:
+                    await self._close_position_internal(order_id, current_price, hit)
+                    return
+        except Exception:
+            pass  # Stream ended or error occurred
+
+    async def _price_only_monitor(self, symbol: str, exchange: str) -> None:
+        """Lightweight background task that only checks price alerts via streaming."""
+        # Stream price updates
+        try:
+            async for update in self._stream_price_async(exchange, symbol):
+                # Check if any price alerts remain for this symbol
+                async with self._alerts_lock:
+                    has_alerts = any(
+                        a["type"] == "price" and a["symbol"] == symbol
+                        for a in self._alerts.values()
                     )
+                    if not has_alerts:
+                        return  # no more alerts — stop task
+
+                current_price = update.get("price")
+                if current_price is None:
+                    continue
+
+                async with self._alerts_lock:
+                    triggered: List[int] = []
+                    for aid, alert in list(self._alerts.items()):
+                        if alert["type"] == "price" and alert["symbol"] == symbol:
+                            if (
+                                alert["direction"] == "above"
+                                and current_price >= alert["price"]
+                            ) or (
+                                alert["direction"] == "below"
+                                and current_price <= alert["price"]
+                            ):
+                                triggered.append(aid)
+
+                    for aid in triggered:
+                        alert = self._alerts.pop(aid)
+                        self._alert_ids.discard(aid)
+                        await self._alert_queue.put(
+                            {
+                                "source": "price_alert",
+                                "alert_id": aid,
+                                "symbol": alert["symbol"],
+                                "price": alert["price"],
+                                "direction": alert["direction"],
+                                "current_price": current_price,
+                                "message": (
+                                    f"Price alert triggered: {alert['symbol']} "
+                                    f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
+                                    f"{alert['price']} (current: {current_price})"
+                                ),
+                            }
+                        )
+        except Exception:
+            pass  # Stream ended or error occurred
 
     # ── Close Position ────────────────────────────────────────────
 

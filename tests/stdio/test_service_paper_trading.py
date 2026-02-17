@@ -1,7 +1,8 @@
 """
 Unit tests for the Paper Trading Engine.
 
-All tests mock get_current_spot_price to avoid network calls.
+Screener loops use WebSocket streaming for real-time price monitoring.
+Tests mock get_current_spot_price (used only in manual close_position calls).
 """
 
 import asyncio
