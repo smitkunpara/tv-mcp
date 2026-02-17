@@ -5,11 +5,12 @@ Eight tools: place_order, close_position, view_positions, show_capital,
 set_alert, alert_manager, view_available_alerts, remove_alert.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Dict, Any
 
 from pydantic import Field
 
 from src.tv_mcp.core.validators import ValidationError
+from src.tv_mcp.core.settings import settings
 from src.tv_mcp.services.paper_trading import PaperTradingEngine
 
 from ..serializers import serialize_error, serialize_success
@@ -20,6 +21,31 @@ def _engine() -> PaperTradingEngine:
     engine = PaperTradingEngine()
     engine.initialize()
     return engine
+
+
+async def _inject_alerts_if_enabled(result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Inject cached alerts into the result if INJECT_ALERTS_IN_ALL_TOOLS is enabled.
+    
+    This allows the AI to see triggered alerts even when using other tools,
+    preventing alert loss when the AI is busy with other tasks.
+    
+    Note: Does NOT clear the cache - only alert_manager should clear it.
+    """
+    if not settings.INJECT_ALERTS_IN_ALL_TOOLS:
+        return result
+    
+    engine = _engine()
+    cached_alerts = await engine.get_cached_alerts(clear_cache=False)
+    
+    if cached_alerts:
+        result["triggered_alerts"] = cached_alerts
+        result["alert_notice"] = (
+            f"{len(cached_alerts)} alert(s) triggered while you were busy. "
+            "These alerts are also available via alert_manager."
+        )
+    
+    return result
 
 
 async def place_order(
@@ -87,6 +113,7 @@ async def place_order(
             lot_size=lot_size,
             trailing_sl=trailing_sl,
         )
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except ValidationError as e:
         return serialize_error(str(e))
@@ -110,6 +137,7 @@ async def close_position(
     """
     try:
         result = await _engine().close_position(order_id=order_id)
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except Exception as e:
         return serialize_error(f"Unexpected error: {str(e)}")
@@ -145,6 +173,7 @@ async def view_positions(
         result = await _engine().view_positions(
             filter_type=filter_type, order_id=order_id
         )
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except Exception as e:
         return serialize_error(f"Unexpected error: {str(e)}")
@@ -157,6 +186,7 @@ async def show_capital() -> str:
     """
     try:
         result = await _engine().show_capital()
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except Exception as e:
         return serialize_error(f"Unexpected error: {str(e)}")
@@ -217,6 +247,7 @@ async def set_alert(
             direction=direction,
             minutes=minutes,
         )
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except ValidationError as e:
         return serialize_error(str(e))
@@ -247,6 +278,7 @@ async def view_available_alerts() -> str:
     """
     try:
         result = await _engine().view_available_alerts()
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except Exception as e:
         return serialize_error(f"Unexpected error: {str(e)}")
@@ -267,6 +299,7 @@ async def remove_alert(
     """
     try:
         result = await _engine().remove_alert(alert_id=alert_id)
+        result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
     except Exception as e:
         return serialize_error(f"Unexpected error: {str(e)}")

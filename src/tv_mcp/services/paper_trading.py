@@ -109,6 +109,10 @@ class PaperTradingEngine:
         self._alerts: Dict[int, dict] = {}
         self._alert_ids: Set[int] = set()
         self._next_alert_id: int = 1
+        
+        # Alert caching for recovery when AI is busy
+        self._triggered_alerts_cache: List[Dict[str, Any]] = []
+        self._cache_lock = asyncio.Lock()
 
         # Background tasks keyed by symbol
         self._screener_tasks: Dict[str, asyncio.Task] = {}
@@ -185,6 +189,27 @@ class PaperTradingEngine:
                 f"Risk:Reward ratio {ratio} is below minimum "
                 f"{settings.MIN_RISK_REWARD_RATIO}. Adjust target or stop loss."
             )
+
+    # ── Alert Caching ─────────────────────────────────────────────
+
+    async def _push_alert_event(self, event: Dict[str, Any]) -> None:
+        """Push an alert event to the queue AND cache it for later retrieval."""
+        await self._alert_queue.put(event)
+        async with self._cache_lock:
+            self._triggered_alerts_cache.append(event)
+
+    async def get_cached_alerts(self, clear_cache: bool = False) -> List[Dict[str, Any]]:
+        """Retrieve cached alert events. Optionally clear the cache after retrieval."""
+        async with self._cache_lock:
+            cached = list(self._triggered_alerts_cache)
+            if clear_cache:
+                self._triggered_alerts_cache.clear()
+            return cached
+
+    async def clear_alert_cache(self) -> None:
+        """Clear the triggered alerts cache."""
+        async with self._cache_lock:
+            self._triggered_alerts_cache.clear()
 
     # ── Order Placement ───────────────────────────────────────────
 
@@ -376,7 +401,7 @@ class PaperTradingEngine:
                     for aid in triggered:
                         alert = self._alerts.pop(aid)
                         self._alert_ids.discard(aid)
-                        await self._alert_queue.put(
+                        await self._push_alert_event(
                             {
                                 "source": "price_alert",
                                 "alert_id": aid,
@@ -433,7 +458,7 @@ class PaperTradingEngine:
                     for aid in triggered:
                         alert = self._alerts.pop(aid)
                         self._alert_ids.discard(aid)
-                        await self._alert_queue.put(
+                        await self._push_alert_event(
                             {
                                 "source": "price_alert",
                                 "alert_id": aid,
@@ -482,8 +507,8 @@ class PaperTradingEngine:
         # Persist to DB
         self._record_closed_trade(pos, exit_price, reason, pnl, pnl_pct)
 
-        # Push event to alert queue
-        await self._alert_queue.put(
+        # Push event to alert queue and cache
+        await self._push_alert_event(
             {
                 "source": "trade_close",
                 "order_id": order_id,
@@ -758,7 +783,7 @@ class PaperTradingEngine:
             if alert_id in self._alert_ids:
                 self._alerts.pop(alert_id, None)
                 self._alert_ids.discard(alert_id)
-                await self._alert_queue.put(
+                await self._push_alert_event(
                     {
                         "source": "time_alert",
                         "alert_id": alert_id,
@@ -817,7 +842,41 @@ class PaperTradingEngine:
     # ── Alert Manager ─────────────────────────────────────────────
 
     async def alert_manager(self) -> Dict[str, Any]:
-        """Block until an alert triggers, then return events with re-call instruction."""
+        """Block until an alert triggers, then return events with re-call instruction.
+        
+        If there are cached alerts from previous triggers, return them immediately.
+        This prevents losing alerts when the AI is busy with other tasks.
+        """
+        # First, check if there are cached alerts from previous triggers
+        cached_alerts = await self.get_cached_alerts(clear_cache=True)
+        if cached_alerts:
+            remaining_alerts = len(self._alerts)
+            remaining_positions = len(self._positions)
+            has_more = remaining_alerts > 0 or remaining_positions > 0
+
+            response: Dict[str, Any] = {
+                "success": True,
+                "triggered_events": cached_alerts,
+                "remaining_manual_alerts": remaining_alerts,
+                "open_positions": remaining_positions,
+                "from_cache": True,
+            }
+
+            if has_more:
+                response["instruction"] = (
+                    "IMPORTANT: There are still active monitors running "
+                    f"({remaining_positions} open positions, "
+                    f"{remaining_alerts} manual alerts). "
+                    "You MUST call alert_manager again to receive further updates. "
+                    "Do NOT stop monitoring."
+                )
+            else:
+                response["instruction"] = (
+                    "All monitors completed. No further action needed."
+                )
+
+            return response
+
         # Check if there is anything to monitor
         has_work = False
         async with self._alerts_lock:
@@ -858,6 +917,9 @@ class PaperTradingEngine:
                 events.append(self._alert_queue.get_nowait())
             except asyncio.QueueEmpty:
                 break
+
+        # Also clear the cache since we're returning events from the queue
+        await self.clear_alert_cache()
 
         remaining_alerts = len(self._alerts)
         remaining_positions = len(self._positions)

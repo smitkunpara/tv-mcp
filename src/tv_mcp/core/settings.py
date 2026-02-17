@@ -47,6 +47,10 @@ class Settings:
         self.TRAILING_SL_ENABLED: bool = os.getenv("TRAILING_SL_ENABLED", "false").lower() == "true"
         self.TRAILING_SL_STEP_PCT: float = float(os.getenv("TRAILING_SL_STEP_PCT", "0.5"))
         self.MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "10"))
+        
+        # Alert Caching: when true, all MCP tools include triggered alerts in their response
+        # When false, alerts are only returned by alert_manager
+        self.INJECT_ALERTS_IN_ALL_TOOLS: bool = os.getenv("INJECT_ALERTS_IN_ALL_TOOLS", "false").lower() == "true"
 
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""
