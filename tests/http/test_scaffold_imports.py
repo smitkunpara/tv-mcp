@@ -24,3 +24,7 @@ class TestVercelScaffold:
     def test_vercel_services(self):
         import vercel.services
         assert vercel.services is not None
+
+    def test_vercel_routers_paper_trading(self):
+        import vercel.routers.paper_trading
+        assert vercel.routers.paper_trading is not None

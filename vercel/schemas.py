@@ -152,6 +152,43 @@ class NseOptionChainOiRequest(BaseModel):
     expiry_date: str = Field(..., description="NSE expiry format 'DD-MMM-YYYY'. REQUIRED.")
 
 
+# ── PAPER TRADING REQUEST MODELS ─────────────────────────────────
+
+
+class PlaceOrderRequest(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=30, description="Trading symbol. REQUIRED.")
+    exchange: str = Field(..., min_length=2, max_length=30, description="Exchange. REQUIRED.")
+    entry_price: float = Field(..., gt=0, description="Entry/limit price. REQUIRED.")
+    stop_loss: float = Field(..., gt=0, description="Stop loss price. REQUIRED.")
+    target: float = Field(..., gt=0, description="Target/take-profit price. REQUIRED.")
+    lot_size: int = Field(..., gt=0, description="Number of lots/quantity. REQUIRED.")
+    trailing_sl: bool = Field(False, description="Enable trailing stop loss.")
+
+
+class ClosePositionRequest(BaseModel):
+    order_id: int = Field(..., description="Order ID of the position to close. REQUIRED.")
+
+
+class ViewPositionsRequest(BaseModel):
+    filter_type: Optional[str] = Field(
+        None, description="Filter: 'open', 'closed', or 'all'."
+    )
+    order_id: Optional[int] = Field(None, description="Specific order ID to view.")
+
+
+class SetAlertRequest(BaseModel):
+    alert_type: str = Field(..., description="Alert type: 'price' or 'time'. REQUIRED.")
+    symbol: Optional[str] = Field(None, description="Symbol for price alert.")
+    exchange: Optional[str] = Field(None, description="Exchange for price alert.")
+    price: Optional[float] = Field(None, description="Target price level.")
+    direction: Optional[str] = Field(None, description="'above' or 'below'.")
+    minutes: Optional[int] = Field(None, gt=0, description="Minutes for time alert.")
+
+
+class RemoveAlertRequest(BaseModel):
+    alert_id: int = Field(..., description="Alert ID to remove. REQUIRED.")
+
+
 # ── RESPONSE MODELS (Needed for valid OpenAPI schemas) ────────────
 
 

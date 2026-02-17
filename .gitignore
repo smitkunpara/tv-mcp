@@ -31,3 +31,5 @@ settings.yml
 /temp
 /plans
 .env*.local
+.gemini
+opencode.json

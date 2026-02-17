@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import public, client, admin
+# Comment the next line to disable paper trading endpoints
+from .routers import paper_trading
 
 
 def create_app() -> FastAPI:
@@ -31,6 +33,8 @@ def create_app() -> FastAPI:
     application.include_router(public.router)
     application.include_router(client.router)
     application.include_router(admin.router)
+    # Comment the next line to disable paper trading endpoints
+    application.include_router(paper_trading.router)
     return application
 
 

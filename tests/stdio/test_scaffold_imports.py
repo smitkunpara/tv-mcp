@@ -35,3 +35,11 @@ class TestTvScrapperScaffold:
     def test_tv_mcp_mcp_tools(self):
         import src.tv_mcp.mcp.tools
         assert src.tv_mcp.mcp.tools is not None
+
+    def test_tv_mcp_services_paper_trading(self):
+        import src.tv_mcp.services.paper_trading
+        assert src.tv_mcp.services.paper_trading is not None
+
+    def test_tv_mcp_mcp_tools_paper_trading(self):
+        import src.tv_mcp.mcp.tools.paper_trading
+        assert src.tv_mcp.mcp.tools.paper_trading is not None

@@ -40,6 +40,15 @@ class Settings:
         self.ADMIN_API_KEY: str = os.getenv("TV_ADMIN_KEY", "admin-secret-123")
         self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "client-secret-123")
 
+        # Paper Trading Configuration
+        self.PAPER_TRADING_CAPITAL: float = float(os.getenv("PAPER_TRADING_CAPITAL", "100000"))
+        self.RISK_PER_TRADE_PCT: float = float(os.getenv("RISK_PER_TRADE_PCT", "2.0"))
+        self.MIN_RISK_REWARD_RATIO: float = float(os.getenv("MIN_RISK_REWARD_RATIO", "1.5"))
+        self.TRAILING_SL_ENABLED: bool = os.getenv("TRAILING_SL_ENABLED", "false").lower() == "true"
+        self.TRAILING_SL_STEP_PCT: float = float(os.getenv("TRAILING_SL_STEP_PCT", "0.5"))
+        self.MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "10"))
+        self.SCREENER_POLL_INTERVAL: int = int(os.getenv("SCREENER_POLL_INTERVAL_SECONDS", "5"))
+
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""
         # 1. In-memory (immediate effect for all modules)
