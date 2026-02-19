@@ -22,13 +22,16 @@ async def get_nse_option_chain_oi(
     expiry_date: Annotated[
         str,
         Field(
-            description="Option expiry date in NSE format 'DD-MMM-YYYY' (e.g., '19-Feb-2026'). REQUIRED.",
+            description="Option expiry date in NSE format 'DD-MMM-YYYY' (e.g., '19-Feb-2026'). REQUIRED. If invalid, error response will include list of valid dates.",
         ),
     ],
 ) -> str:
     """
     Fetch real-time Open Interest (OI) data and Put-Call Ratio (PCR) from NSE India.
     Use this for advanced Indian market sentiment analysis based on OI accumulation and shifts.
+    
+    The expiry date is automatically validated against NSE's available expiry dates. If you provide an invalid date, 
+    the response will include a helpful error message with all available valid dates for that symbol.
     
     NOTE: NSE volume data ('vol') represents the number of LOTS traded, not the number of shares.
     """

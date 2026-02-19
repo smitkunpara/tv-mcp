@@ -8,6 +8,103 @@ from tv_scraper import Options, Overview
 from tv_mcp.core.validators import validate_exchange, validate_symbol, ValidationError
 
 
+def fetch_nse_valid_expiry_dates(symbol: str) -> Dict[str, Any]:
+    """
+    Fetch valid option expiry dates from NSE for a given symbol.
+    
+    Args:
+        symbol: NSE Index symbol (e.g., 'NIFTY', 'BANKNIFTY')
+    
+    Returns:
+        Dict with valid expiry dates list or error info
+    """
+    supported = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"]
+    if symbol.upper() not in supported:
+        return {
+            "success": False,
+            "error": f"Symbol '{symbol}' not supported for NSE OI data. Supported: {', '.join(supported)}"
+        }
+    
+    url = "https://www.nseindia.com/api/option-chain-contract-info"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.nseindia.com/option-chain",
+    }
+    
+    params = {"symbol": symbol.upper()}
+    
+    try:
+        import requests
+        session = requests.Session()
+        session.get("https://www.nseindia.com/option-chain", headers=headers, timeout=10)
+        
+        response = session.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        expiry_dates = data.get("expiryDates", [])
+        if not expiry_dates:
+            return {
+                "success": False,
+                "error": f"No expiry dates found for {symbol}"
+            }
+        
+        return {
+            "success": True,
+            "expiryDates": expiry_dates
+        }
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to fetch valid expiry dates from NSE: {str(e)}"
+        }
+
+
+def validate_nse_expiry_date(symbol: str, expiry_date: str) -> Dict[str, Any]:
+    """
+    Validate if the provided expiry date is valid for NSE options.
+    
+    Args:
+        symbol: NSE Index symbol
+        expiry_date: Expiry date in DD-MMM-YYYY format (e.g., '19-Feb-2026')
+    
+    Returns:
+        Dict indicating validation success and available dates if invalid
+    """
+    # Fetch valid expiry dates
+    result = fetch_nse_valid_expiry_dates(symbol)
+    
+    if not result.get("success"):
+        return {
+            "success": False,
+            "valid": False,
+            "error": result.get("error")
+        }
+    
+    valid_dates = result.get("expiryDates", [])
+    
+    # Check if provided date is in the list
+    if expiry_date in valid_dates:
+        return {
+            "success": True,
+            "valid": True,
+            "date": expiry_date
+        }
+    
+    # Date is invalid - return helpful error
+    return {
+        "success": False,
+        "valid": False,
+        "provided_date": expiry_date,
+        "valid_dates": valid_dates,
+        "error": f"Invalid expiry date '{expiry_date}' for {symbol}. Please use one of the available expiry dates."
+    }
+
+
 def get_current_spot_price(symbol: str, exchange: str) -> float:
     scraper = Overview(export_result=False)
     result = scraper.get_overview(exchange=exchange, symbol=symbol, fields=["close"])
@@ -29,6 +126,22 @@ def fetch_nse_option_chain_oi(
     supported = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"]
     if symbol.upper() not in supported:
         raise ValidationError(f"Symbol '{symbol}' not supported for NSE OI data. Supported: {', '.join(supported)}")
+
+    # Validate expiry date
+    validation_result = validate_nse_expiry_date(symbol, expiry_date)
+    if not validation_result.get("valid"):
+        # Return with valid dates for AI guidance
+        error_msg = f"❌ Invalid expiry date '{expiry_date}' for {symbol}.\n\n"
+        error_msg += f"Valid expiry dates for {symbol} are:\n"
+        valid_dates = validation_result.get("valid_dates", [])
+        for i, date in enumerate(valid_dates, 1):
+            error_msg += f"{i}. {date}\n"
+        error_msg += f"\nPlease use one of these dates in DD-MMM-YYYY format (e.g., '24-Feb-2026')."
+        return {
+            "success": False,
+            "message": error_msg,
+            "valid_dates": valid_dates
+        }
 
     url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol.upper()}&expiry={expiry_date}"
     
