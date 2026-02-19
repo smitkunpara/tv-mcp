@@ -52,6 +52,16 @@ class Settings:
         # When false, alerts are only returned by alert_manager
         self.INJECT_ALERTS_IN_ALL_TOOLS: bool = os.getenv("INJECT_ALERTS_IN_ALL_TOOLS", "false").lower() == "true"
 
+        # Alert manager timeout in seconds — how long alert_manager waits before returning
+        _raw_timeout = int(os.getenv("ALERT_MANAGER_TIMEOUT_SECONDS", "300"))
+        if _raw_timeout < 0:
+            print(
+                f"\u26a0\ufe0f ALERT_MANAGER_TIMEOUT_SECONDS={_raw_timeout} is invalid "
+                "(must be >= 0). Defaulting to 300 seconds."
+            )
+            _raw_timeout = 300
+        self.ALERT_MANAGER_TIMEOUT_SECONDS: int = _raw_timeout
+
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""
         # 1. In-memory (immediate effect for all modules)

@@ -48,7 +48,7 @@ async def place_order_endpoint(request: PlaceOrderRequest) -> dict:
             stop_loss=request.stop_loss,
             target=request.target,
             lot_size=request.lot_size,
-            trailing_sl=request.trailing_sl,
+            trailing_sl_step_pct=request.trailing_sl_step_pct,
         )
         return {"data": toon_encode(result)}
     except ValidationError as e:
@@ -122,7 +122,6 @@ async def set_alert_endpoint(request: SetAlertRequest) -> dict:
             symbol=request.symbol,
             exchange=request.exchange,
             price=request.price,
-            direction=request.direction,
             minutes=request.minutes,
         )
         return {"data": toon_encode(result)}

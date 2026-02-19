@@ -84,7 +84,7 @@ class TestSetAlertTool:
         mock_engine = MagicMock()
         mock_engine.set_alert = AsyncMock(return_value={"success": True, "alert_id": 1})
         with patch(ENGINE_PATH, return_value=mock_engine):
-            result = _run(set_alert(alert_type="price", symbol="NIFTY", exchange="NSE", price=23000, direction="above"))
+            result = _run(set_alert(alert_type="price", symbol="NIFTY", exchange="NSE", price=23000))
         assert "success" in result.lower()
 
     def test_validation_error(self):

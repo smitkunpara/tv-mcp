@@ -1,211 +1,89 @@
 # TradingView MCP Server
 
-A FastMCP server and HTTP API that provides tools to scrape and fetch real-time data from TradingView, including historical prices, technical indicators, news, trading ideas, and options chain analysis. Supports both MCP protocol for AI assistants and REST API for direct integration.
+A FastMCP server and HTTP API for real-time TradingView data scraping and paper trading.  
+Supports the **MCP protocol** (stdio) for AI assistants and a **REST API** for direct integration.
 
-## Roadmap / To-do 🚀
+> [!WARNING]
+> The **stdio (MCP)** tools are thoroughly tested and confirmed working. The **Vercel (HTTP)** endpoints are in beta and have not been fully verified for all edge cases.
+
+## Roadmap
 
 - [x] Migrate to `tv_scraper` V1.0.0 (Modular architecture).
 - [x] Integrate NSE Option Chain OI & PCR data (NIFTY, BANKNIFTY, etc.).
-- [ ] Implement local Paper Trading mode (Allow AI to trade and find accuracy).
+- [x] Implement paper trading mode (AI-driven simulated trading with full P&L tracking).
+- [ ] Implement BSE OI scraping (pending).
 
-> [!WARNING]
-> The **stdio (MCP)** tools are thoroughly tested and confirmed working. However, the **Vercel (HTTP)** endpoints are currently in a beta state and have not been fully verified for all edge cases. Use the REST API with caution.
+---
 
-## Installation
+## Quick Start
 
-### Install with uv (recommended)
 ```bash
 git clone https://github.com/smitkunpara/tradingview-mcp.git
 cd tradingview-mcp
 uv sync
-cp .env.example .env  # Copy and edit with your TradingView cookies
+cp .env.example .env   # then edit .env with your TradingView cookie
 ```
 
-### Install with pip
-```bash
-git clone https://github.com/smitkunpara/tradingview-mcp.git
-cd tradingview-mcp
-pip install -e .
-cp .env.example .env  # Copy and edit with your TradingView cookies
-```
-
-## MCP Server Setup
-
-To use the server with MCP-compatible clients (e.g., VS Code with MCP extension):
-
-### Run MCP server locally
+### MCP Server (stdio)
 
 ```bash
 uv run python server.py
 ```
 
-1. Create `.vscode/mcp.json` in your workspace root.
-2. Add the following configuration (replace with your values):
+Add to `.vscode/mcp.json`:
 
 ```json
 {
   "servers": {
     "TradingView": {
       "command": "uv",
-      "args": [
-        "run",
-        "python",
-        "server.py"
-      ],
+      "args": ["run", "python", "server.py"],
       "env": {
-        "TRADINGVIEW_COOKIE": "your_tradingview_cookies_here",
-        "TRADINGVIEW_URL": "https://in.tradingview.com/chart/your_chart_id/?symbol=NSE%3ANIFTY",
+        "TRADINGVIEW_COOKIE": "your_tradingview_cookies_here"
       }
     }
   }
 }
 ```
 
-This sets up the stdio server for MCP integration.
-
-## Configuration
-
-### Getting TradingView Cookies
-1. Visit [TradingView](https://www.tradingview.com/) and log in to your account
-2. Open any chart (e.g., NASDAQ, Bitcoin, or any symbol)
-3. Open Developer Tools (F12) and go to the **Network** tab
-4. Reload the page (F5 or Ctrl+R)
-5. Look for a **GET** request with URL: `https://www.tradingview.com/chart/?symbol=<symbol_id>` (where `<symbol_id>` is something like `BINANCE%3ABTCUSDT`)
-6. Click on that request to open it
-7. Go to the **Request Headers** section
-8. Find the `Cookie` header and copy its entire value 
-9. **Important:** .env files require proper escaping of quotes within values. If your cookie contains quotes, they must be escaped as `\"` for the .env parser to work correctly.
-10. Paste this value into your `.env` file as `TRADINGVIEW_COOKIE="your_cookies_here"`
-
-**Note:** Convert the cookies to [escaped format](https://onlinestringtools.com/escape-string) 
-
-## HTTP API Server
-
-The project also includes a FastAPI-based HTTP server that provides the same functionality as REST API endpoints. This is useful for direct HTTP requests or integration with web applications.
-
-### Running the HTTP Server
+### HTTP Server
 
 ```bash
-# Using uv (recommended)
-uv run python vercel/app.py
-
-# Or using python directly
-python vercel/app.py
+uv run python vercel/app.py   # listens on http://localhost:4589
 ```
 
-The server will start on `http://localhost:4589` with automatic API documentation at `http://localhost:4589/docs`.
+---
 
-**Note:** The HTTP server uses the same environment variables as the MCP server. Make sure your `.env` file contains the `TRADINGVIEW_COOKIE` variable.
+## Available Tools
 
-### Example HTTP Request
+| Category | Tools |
+|---|---|
+| Market Data | `get_historical_data`, `get_all_indicators` |
+| News | `get_news_headlines`, `get_news_content` |
+| Community | `get_ideas`, `get_minds` |
+| Options | `get_option_chain_greeks`, `get_nse_option_chain_oi` |
+| Paper Trading | `place_order`, `close_position`, `view_positions`, `show_capital`, `set_alert`, `alert_manager`, `view_available_alerts`, `remove_alert` |
 
-```bash
-curl -X POST "http://localhost:4589/historical-data" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "exchange": "NSE",
-    "symbol": "NIFTY",
-    "timeframe": "1d",
-    "numb_price_candles": 100,
-    "indicators": ["RSI", "MACD"]
-  }'
-```
+---
 
-## Available Tools/Endpoints
+## Documentation
 
-The server provides the following functionality through both MCP tools and HTTP API endpoints:
+| Guide | Description |
+|---|---|
+| [Paper Trading Guide](docs/paper-trading-guide.md) | Full paper trading walkthrough, tools, DB, scripts |
+| [Configuration Reference](docs/configuration.md) | All environment variables explained |
+| [HTTP API Reference](docs/http-api.md) | REST endpoint details with examples |
+| [Deployment Guide](docs/deployment.md) | Vercel, ChatGPT, cookie extension setup |
 
-### Data Fetching Tools
-- **get_historical_data / POST /historical-data**: Fetch historical OHLCV data with technical indicators
-  - Supports **stocks, indices, crypto, options** (with specific strike), and **futures**.
-  - NOTE: Index volume represents underlying market activity, not option lot volume.
-  - Timeframes: 1m, 5m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1M
-  - Indicators: RSI, MACD, CCI, Bollinger Bands, and more
-
-### News & Content Tools
-- **get_news_headlines / POST /news-headlines**: Get latest news headlines
-  - REQUIRED: `symbol`, `exchange`.
-  - Filter by provider, area, and **IST date-time range**.
-  - Returns `id` for content fetching.
-
-- **get_news_content / POST /news-content**: Fetch full content of news articles
-  - Extract complete article text using `story_ids`.
-
-### Community & Analysis Tools
-- **get_ideas / POST /ideas**: Scrape community trading ideas
-  - REQUIRED: `symbol`, `exchange`.
-  - Filter by popularity, recency, and **IST date-time range**.
-
-- **get_minds / POST /minds**: Get community discussions (Minds)
-  - REQUIRED: `symbol`, `exchange`.
-  - Default `limit` is 1 for safety.
-  - Filter by **IST date-time range**.
-
-- **get_option_chain_greeks / POST /option-chain-greeks**: Standard option chain analysis
-  - Greeks (Delta, Gamma, etc.) and Implied Volatility via TradingView data.
-
-- **get_nse_option_chain_oi / POST /nse-option-chain-oi**: NSE-specific OI & PCR analysis
-  - Direct data from NSE India for indices (**NIFTY, BANKNIFTY**, etc.).
-  - Calculates **PCR (Put-Call Ratio)** and cleans data for sentiment analysis.
-  - NOTE: Volume ('vol') is reported in **LOTS**.
-  - Expiry format: `DD-MMM-YYYY` (e.g., 19-Feb-2026).
-
-### Additional Endpoints
-- **GET /privacy-policy**: View privacy policy and disclaimer
-- **GET /openapi.json**: OpenAPI specification for the API (auto-generated by FastAPI)
-- **GET /**: API information and available endpoints
-
-All endpoints return structured JSON responses with TOON encoding for efficient token usage in AI applications.
-
-## Extension Configuration
-
-For Chrome extension installation and usage instructions, see [cookie_updater_extension/README.md](cookie_updater_extension/README.md).
-
-## Setting up Vercel
-
-Deploy to Vercel to expose the FastAPI endpoints.
-
-- **Entrypoint**: `vercel/app.py`
-- **Env vars**: `TRADINGVIEW_COOKIE`, `VERCEL_URL`, `TV_ADMIN_KEY`, `TV_CLIENT_KEY`
-
-Update-cookies endpoint
-- Endpoint: `POST /update-cookies` (requires `X-Admin-Key`)
-- Example:
-  ```bash
-  curl -X POST "https://your-app.vercel.app/update-cookies" \
-    -H "Content-Type: application/json" \
-    -H "X-Admin-Key: <your-admin-key>" \
-    -d '{"cookies": [{"name": "sessionid", "value": "..."}], "source": "extension"}'
-  ```
-- No redeploy needed; server updates cookies at runtime.
-
-## Setting up ChatGPT
-
-Connect ChatGPT or a custom GPT by calling the endpoints with `X-Client-Key`.
-
-1. Import the OpenAPI spec: `<your-vercel-url>/openapi.json`
-2. View privacy policy: `<your-vercel-url>/privacy-policy`
-3. In GPT creation:
-   - Select "API" as the action type
-   - Choose "Custom" for authentication
-   - Add custom header: `X-Client-Key` with your `TV_CLIENT_KEY` value
-4. The `servers[0].url` updates to the latest deployment URL; re-import if needed.
-
+---
 
 ## Contributing
 
-This project is open source and welcomes contributions from the community! Whether you're fixing bugs, adding new features, improving documentation, or sharing ideas, your input is valuable.
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Submit a pull request with a clear description of your changes
-
-
-We appreciate all contributions, big or small! Please feel free to open issues for bugs, feature requests, or general discussions.
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Make your changes and open a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
+

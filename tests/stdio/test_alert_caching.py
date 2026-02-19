@@ -120,7 +120,7 @@ class TestAlertCaching:
         # Add a fake position so has_work is True
         from src.tv_mcp.services.paper_trading import Position
         fresh_engine._positions[1] = Position(
-            1, "X", "NSE", "BUY", 100, 90, 200, 1, False, "test"
+            1, "X", "NSE", "BUY", 100, 90, 200, 1, None, "test"
         )
         
         # Start put_event task and call alert_manager
