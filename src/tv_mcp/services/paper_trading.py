@@ -32,7 +32,7 @@ class Position:
         stop_loss: float,
         target: float,
         lot_size: int,
-        trailing_sl: bool,
+        trailing_sl_step_pct: Optional[float],
         opened_at_ist: str,
     ):
         self.order_id = order_id
@@ -44,7 +44,9 @@ class Position:
         self.current_sl = stop_loss  # updated by trailing SL logic
         self.target = target
         self.lot_size = lot_size
-        self.trailing_sl = trailing_sl
+        # trailing_sl_step_pct > 0 auto-enables trailing SL with that step percentage
+        self.trailing_sl_step_pct: Optional[float] = trailing_sl_step_pct
+        self.trailing_sl: bool = bool(trailing_sl_step_pct and trailing_sl_step_pct > 0)
         self.opened_at_ist = opened_at_ist
         self.screener_task: Optional[asyncio.Task] = None
 
@@ -61,6 +63,7 @@ class Position:
             "target": self.target,
             "lot_size": self.lot_size,
             "trailing_sl": self.trailing_sl,
+            "trailing_sl_step_pct": self.trailing_sl_step_pct,
             "opened_at": self.opened_at_ist,
             "status": "OPEN",
         }
@@ -94,22 +97,16 @@ class PaperTradingEngine:
             return
         self._initialized = True
 
-        # Order management
-        self._next_order_id: int = 1
-        self._positions: Dict[int, Position] = {}
-        self._capital: float = settings.PAPER_TRADING_CAPITAL
-        self._total_pnl: float = 0.0
-
-        # Concurrency primitives
+        # Concurrency primitives (must be set before _load_state_from_db call)
         self._positions_lock = asyncio.Lock()
         self._alerts_lock = asyncio.Lock()
         self._alert_queue: asyncio.Queue = asyncio.Queue()
 
-        # Alert management
+        # Position and alert containers
+        self._positions: Dict[int, Position] = {}
         self._alerts: Dict[int, dict] = {}
         self._alert_ids: Set[int] = set()
-        self._next_alert_id: int = 1
-        
+
         # Alert caching for recovery when AI is busy
         self._triggered_alerts_cache: List[Dict[str, Any]] = []
         self._cache_lock = asyncio.Lock()
@@ -117,12 +114,13 @@ class PaperTradingEngine:
         # Background tasks keyed by symbol
         self._screener_tasks: Dict[str, asyncio.Task] = {}
 
-        # Database
+        # Database — init tables first, then load persisted state
         self._db_path: str = os.path.join(_get_project_root(), "paper_trades.db")
         self._init_db()
+        self._load_state_from_db()  # populates _capital, _total_pnl, _next_order_id, etc.
 
     def _init_db(self) -> None:
-        """Create the SQLite database and closed_trades table if needed."""
+        """Create the SQLite database, closed_trades and trading_config tables if needed."""
         conn = sqlite3.connect(self._db_path)
         conn.execute(
             """
@@ -144,8 +142,81 @@ class PaperTradingEngine:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS trading_config (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
         conn.close()
+
+    def _load_state_from_db(self) -> None:
+        """Load persisted capital, PnL, counters, and config from DB.
+
+        If the trading_config table is empty (first run or new DB), seeds it with
+        defaults derived from environment variables / settings.
+        """
+        conn = sqlite3.connect(self._db_path)
+        try:
+            cur = conn.execute("SELECT key, value FROM trading_config")
+            cfg: dict = {row[0]: row[1] for row in cur.fetchall()}
+        finally:
+            conn.close()
+
+        # Defaults derived from env-based settings (used when DB has no rows yet)
+        defaults = {
+            "initial_capital":      str(settings.PAPER_TRADING_CAPITAL),
+            "current_capital":      str(settings.PAPER_TRADING_CAPITAL),
+            "total_pnl":            "0.0",
+            "next_order_id":        "1",
+            "next_alert_id":        "1",
+            "min_risk_reward_ratio": str(settings.MIN_RISK_REWARD_RATIO),
+            "max_open_positions":   str(settings.MAX_OPEN_POSITIONS),
+            "trailing_sl_step_pct": str(settings.TRAILING_SL_STEP_PCT),
+        }
+
+        is_empty = not cfg
+        for key, default_val in defaults.items():
+            if key not in cfg:
+                cfg[key] = default_val
+
+        if is_empty:
+            # First-time setup: seed DB with defaults
+            self._write_config_rows(cfg)
+
+        self._initial_capital:      float = float(cfg["initial_capital"])
+        self._capital:              float = float(cfg["current_capital"])
+        self._total_pnl:            float = float(cfg["total_pnl"])
+        self._next_order_id:        int   = int(cfg["next_order_id"])
+        self._next_alert_id:        int   = int(cfg["next_alert_id"])
+        self._min_risk_reward_ratio: float = float(cfg["min_risk_reward_ratio"])
+        self._max_open_positions:   int   = int(cfg["max_open_positions"])
+        self._trailing_sl_step_pct: float = float(cfg["trailing_sl_step_pct"])
+
+    def _write_config_rows(self, data: dict) -> None:
+        """Upsert arbitrary key/value pairs into trading_config."""
+        conn = sqlite3.connect(self._db_path)
+        try:
+            for key, value in data.items():
+                conn.execute(
+                    "INSERT OR REPLACE INTO trading_config (key, value) VALUES (?, ?)",
+                    (key, str(value)),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _save_state_to_db(self) -> None:
+        """Persist runtime state (capital, PnL, counters) to the DB."""
+        self._write_config_rows({
+            "current_capital": str(self._capital),
+            "total_pnl":       str(self._total_pnl),
+            "next_order_id":   str(self._next_order_id),
+            "next_alert_id":   str(self._next_alert_id),
+        })
 
     async def _stream_price_async(self, exchange: str, symbol: str):
         """Async generator wrapper for sync Streamer.stream_realtime_price().
@@ -184,10 +255,10 @@ class PaperTradingEngine:
         if risk == 0:
             raise ValidationError("Stop loss cannot equal entry price.")
         ratio = round(reward / risk, 2)
-        if ratio < settings.MIN_RISK_REWARD_RATIO:
+        if ratio < self._min_risk_reward_ratio:
             raise ValidationError(
                 f"Risk:Reward ratio {ratio} is below minimum "
-                f"{settings.MIN_RISK_REWARD_RATIO}. Adjust target or stop loss."
+                f"{self._min_risk_reward_ratio}. Adjust target or stop loss."
             )
 
     # ── Alert Caching ─────────────────────────────────────────────
@@ -221,7 +292,7 @@ class PaperTradingEngine:
         stop_loss: float,
         target: float,
         lot_size: int,
-        trailing_sl: bool = False,
+        trailing_sl_step_pct: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Place a paper trade order and start a background screener."""
         # Input validation
@@ -261,9 +332,9 @@ class PaperTradingEngine:
 
         async with self._positions_lock:
             # Max open positions check
-            if len(self._positions) >= settings.MAX_OPEN_POSITIONS:
+            if len(self._positions) >= self._max_open_positions:
                 raise ValidationError(
-                    f"Maximum open positions ({settings.MAX_OPEN_POSITIONS}) reached. "
+                    f"Maximum open positions ({self._max_open_positions}) reached. "
                     "Close an existing position first."
                 )
 
@@ -293,7 +364,7 @@ class PaperTradingEngine:
                 stop_loss=stop_loss,
                 target=target,
                 lot_size=lot_size,
-                trailing_sl=trailing_sl,
+                trailing_sl_step_pct=trailing_sl_step_pct,
                 opened_at_ist=opened_at,
             )
 
@@ -303,6 +374,9 @@ class PaperTradingEngine:
             self._positions[order_id] = pos
             # Track screener by symbol for price alert folding
             self._screener_tasks[symbol] = task
+
+        # Persist updated order counter to DB
+        self._save_state_to_db()
 
         return {
             "success": True,
@@ -314,13 +388,19 @@ class PaperTradingEngine:
             "stop_loss": stop_loss,
             "target": target,
             "lot_size": lot_size,
-            "trailing_sl": trailing_sl,
+            "trailing_sl": bool(trailing_sl_step_pct and trailing_sl_step_pct > 0),
+            "trailing_sl_step_pct": trailing_sl_step_pct,
             "opened_at": opened_at,
             "message": (
                 f"Order #{order_id} placed: {side} {lot_size} lots of "
                 f"{exchange}:{symbol} @ {entry_price}. "
                 f"SL: {stop_loss}, Target: {target}. "
-                "Screener monitoring started automatically."
+                + (
+                    f"Trailing SL enabled at {trailing_sl_step_pct}% step. "
+                    if trailing_sl_step_pct and trailing_sl_step_pct > 0
+                    else ""
+                )
+                + "Screener monitoring started automatically."
             ),
         }
 
@@ -359,9 +439,9 @@ class PaperTradingEngine:
                         )
                     elif current_price >= pos.target:
                         hit = "TARGET_HIT"
-                    elif pos.trailing_sl and current_price > pos.entry_price:
+                    elif pos.trailing_sl and pos.trailing_sl_step_pct and current_price > pos.entry_price:
                         new_sl = round(
-                            current_price * (1 - settings.TRAILING_SL_STEP_PCT / 100), 2
+                            current_price * (1 - pos.trailing_sl_step_pct / 100), 2
                         )
                         if new_sl > pos.current_sl:
                             pos.current_sl = new_sl
@@ -374,9 +454,9 @@ class PaperTradingEngine:
                         )
                     elif current_price <= pos.target:
                         hit = "TARGET_HIT"
-                    elif pos.trailing_sl and current_price < pos.entry_price:
+                    elif pos.trailing_sl and pos.trailing_sl_step_pct and current_price < pos.entry_price:
                         new_sl = round(
-                            current_price * (1 + settings.TRAILING_SL_STEP_PCT / 100), 2
+                            current_price * (1 + pos.trailing_sl_step_pct / 100), 2
                         )
                         if new_sl < pos.current_sl:
                             pos.current_sl = new_sl
@@ -503,6 +583,9 @@ class PaperTradingEngine:
             # Update capital (return invested + pnl)
             self._capital += invested + pnl
             self._total_pnl += pnl
+
+        # Persist updated capital/PnL to DB
+        self._save_state_to_db()
 
         # Persist to DB
         self._record_closed_trade(pos, exit_price, reason, pnl, pnl_pct)
@@ -692,7 +775,7 @@ class PaperTradingEngine:
             )
             open_count = len(self._positions)
 
-        initial = settings.PAPER_TRADING_CAPITAL
+        initial = self._initial_capital
         return {
             "success": True,
             "initial_capital": initial,
@@ -714,10 +797,14 @@ class PaperTradingEngine:
         symbol: Optional[str] = None,
         exchange: Optional[str] = None,
         price: Optional[float] = None,
-        direction: Optional[str] = None,
         minutes: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Create a price or time alert."""
+        """Create a price or time alert.
+
+        For price alerts the trigger direction is auto-detected:
+          - current_price < alert_price  →  triggers when price rises ABOVE alert_price
+          - current_price > alert_price  →  triggers when price falls BELOW alert_price
+        """
         async with self._alerts_lock:
             alert_id = self._next_alert_id
             self._next_alert_id += 1
@@ -729,11 +816,27 @@ class PaperTradingEngine:
                     )
                 sym = symbol.strip().upper()
                 exch = exchange.strip().upper()
-                dir_ = (direction or "above").lower()
-                if dir_ not in ("above", "below"):
+
+                # Auto-detect direction from current market price
+                try:
+                    from tv_mcp.services.options import get_current_spot_price
+                    current_price = get_current_spot_price(sym, exch)
+                except Exception:
+                    current_price = None
+
+                if current_price is not None and current_price == float(price):
                     raise ValidationError(
-                        "Direction must be 'above' or 'below'."
+                        f"Alert price ({price}) equals current price ({current_price}). "
+                        "Set an alert price above or below the current price."
                     )
+
+                if current_price is not None:
+                    dir_ = "above" if current_price < float(price) else "below"
+                else:
+                    # Fallback: if we can't fetch current price, default to above
+                    dir_ = "above"
+                    current_price = None
+
                 self._alerts[alert_id] = {
                     "type": "price",
                     "symbol": sym,
@@ -769,12 +872,26 @@ class PaperTradingEngine:
                     f"Invalid alert type '{alert_type}'. Use 'price' or 'time'."
                 )
 
-        return {
+        # Persist updated alert counter to DB
+        self._save_state_to_db()
+
+        result: Dict[str, Any] = {
             "success": True,
             "alert_id": alert_id,
             "type": alert_type,
             "message": f"Alert #{alert_id} ({alert_type}) set successfully.",
         }
+        if alert_type == "price":
+            result["alert_price"] = float(price)
+            result["direction"] = dir_
+            if current_price is not None:
+                result["current_price"] = current_price
+                result["message"] = (
+                    f"Alert #{alert_id} set: will trigger when {sym} "
+                    f"{'rises above' if dir_ == 'above' else 'drops below'} "
+                    f"{float(price)} (current price: {current_price})."
+                )
+        return result
 
     async def _time_alert_task(self, alert_id: int, minutes: int) -> None:
         """Sleep for *minutes* then push a time-alert event."""
@@ -896,14 +1013,15 @@ class PaperTradingEngine:
                 "active_threads": 0,
             }
 
-        # Wait for an event (5 minute max)
+        # Wait for an event (configurable timeout via ALERT_MANAGER_TIMEOUT_SECONDS)
+        timeout = settings.ALERT_MANAGER_TIMEOUT_SECONDS
         try:
-            event = await asyncio.wait_for(self._alert_queue.get(), timeout=300)
+            event = await asyncio.wait_for(self._alert_queue.get(), timeout=timeout)
         except asyncio.TimeoutError:
             return {
                 "success": True,
                 "message": (
-                    "No alerts triggered in 5 minutes. "
+                    f"No alerts triggered in {timeout} seconds. "
                     "Call alert_manager again to continue monitoring."
                 ),
                 "active_alerts": len(self._alerts),

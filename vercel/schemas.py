@@ -162,7 +162,13 @@ class PlaceOrderRequest(BaseModel):
     stop_loss: float = Field(..., gt=0, description="Stop loss price. REQUIRED.")
     target: float = Field(..., gt=0, description="Target/take-profit price. REQUIRED.")
     lot_size: int = Field(..., gt=0, description="Number of lots/quantity. REQUIRED.")
-    trailing_sl: bool = Field(False, description="Enable trailing stop loss.")
+    trailing_sl_step_pct: Optional[float] = Field(
+        None,
+        description=(
+            "Trailing SL step as % of current price (e.g. 0.5). "
+            "Providing this value enables trailing SL. Omit to disable."
+        ),
+    )
 
 
 class ClosePositionRequest(BaseModel):
@@ -180,8 +186,12 @@ class SetAlertRequest(BaseModel):
     alert_type: str = Field(..., description="Alert type: 'price' or 'time'. REQUIRED.")
     symbol: Optional[str] = Field(None, description="Symbol for price alert.")
     exchange: Optional[str] = Field(None, description="Exchange for price alert.")
-    price: Optional[float] = Field(None, description="Target price level.")
-    direction: Optional[str] = Field(None, description="'above' or 'below'.")
+    price: Optional[float] = Field(
+        None,
+        description=(
+            "Target price level. Direction is auto-detected from current market price."
+        ),
+    )
     minutes: Optional[int] = Field(None, gt=0, description="Minutes for time alert.")
 
 

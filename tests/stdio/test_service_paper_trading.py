@@ -37,11 +37,11 @@ def fresh_engine(tmp_path):
 
 
 class TestPositionModel:
-    def test_to_dict(self):
+    def test_to_dict_no_trailing(self):
         pos = Position(
             order_id=1, symbol="NIFTY", exchange="NSE", side="BUY",
             entry_price=23000.0, stop_loss=22800.0, target=23500.0,
-            lot_size=1, trailing_sl=False, opened_at_ist="17-02-2026 10:00:00 AM IST",
+            lot_size=1, trailing_sl_step_pct=None, opened_at_ist="17-02-2026 10:00:00 AM IST",
         )
         d = pos.to_dict()
         assert d["order_id"] == 1
@@ -49,6 +49,17 @@ class TestPositionModel:
         assert d["status"] == "OPEN"
         assert d["side"] == "BUY"
         assert d["trailing_sl"] is False
+        assert d["trailing_sl_step_pct"] is None
+
+    def test_to_dict_with_trailing(self):
+        pos = Position(
+            order_id=2, symbol="NIFTY", exchange="NSE", side="BUY",
+            entry_price=23000.0, stop_loss=22800.0, target=23500.0,
+            lot_size=1, trailing_sl_step_pct=0.5, opened_at_ist="17-02-2026 10:00:00 AM IST",
+        )
+        d = pos.to_dict()
+        assert d["trailing_sl"] is True
+        assert d["trailing_sl_step_pct"] == 0.5
 
 
 class TestProjectRoot:
@@ -200,9 +211,8 @@ class TestPlaceOrder:
     @pytest.mark.asyncio
     async def test_place_order_max_positions(self, fresh_engine):
         """Should fail when max open positions exceeded."""
-        from tv_mcp.core.settings import settings
-        original = settings.MAX_OPEN_POSITIONS
-        settings.MAX_OPEN_POSITIONS = 1
+        original = fresh_engine._max_open_positions
+        fresh_engine._max_open_positions = 1
         try:
             with patch(SPOT_PRICE_PATH, return_value=100.0):
                 await fresh_engine.place_order(
@@ -217,7 +227,7 @@ class TestPlaceOrder:
                         lot_size=1,
                     )
         finally:
-            settings.MAX_OPEN_POSITIONS = original
+            fresh_engine._max_open_positions = original
 
     @pytest.mark.asyncio
     async def test_order_id_increments(self, fresh_engine):
@@ -408,13 +418,15 @@ class TestShowCapital:
 class TestAlerts:
     @pytest.mark.asyncio
     async def test_set_price_alert(self, fresh_engine):
-        result = await fresh_engine.set_alert(
-            alert_type="price", symbol="NIFTY", exchange="NSE",
-            price=23500, direction="above",
-        )
+        with patch(SPOT_PRICE_PATH, return_value=23000.0):
+            result = await fresh_engine.set_alert(
+                alert_type="price", symbol="NIFTY", exchange="NSE",
+                price=23500,
+            )
         assert result["success"] is True
         assert result["alert_id"] == 1
         assert result["type"] == "price"
+        assert result["direction"] == "above"  # 23000 < 23500
 
     @pytest.mark.asyncio
     async def test_set_time_alert(self, fresh_engine):
@@ -439,10 +451,11 @@ class TestAlerts:
 
     @pytest.mark.asyncio
     async def test_view_available_alerts(self, fresh_engine):
-        await fresh_engine.set_alert(
-            alert_type="price", symbol="NIFTY", exchange="NSE",
-            price=23500, direction="above",
-        )
+        with patch(SPOT_PRICE_PATH, return_value=23000.0):
+            await fresh_engine.set_alert(
+                alert_type="price", symbol="NIFTY", exchange="NSE",
+                price=23500,
+            )
         result = await fresh_engine.view_available_alerts()
         assert result["success"] is True
         assert len(result["manual_alerts"]) == 1
@@ -450,10 +463,11 @@ class TestAlerts:
 
     @pytest.mark.asyncio
     async def test_remove_alert_success(self, fresh_engine):
-        alert = await fresh_engine.set_alert(
-            alert_type="price", symbol="NIFTY", exchange="NSE",
-            price=23500, direction="above",
-        )
+        with patch(SPOT_PRICE_PATH, return_value=23000.0):
+            alert = await fresh_engine.set_alert(
+                alert_type="price", symbol="NIFTY", exchange="NSE",
+                price=23500,
+            )
         result = await fresh_engine.remove_alert(alert["alert_id"])
         assert result["success"] is True
 
@@ -466,19 +480,42 @@ class TestAlerts:
     async def test_alert_id_uses_set_for_fast_lookup(self, fresh_engine):
         """Verify alert IDs are tracked in a set."""
         assert isinstance(fresh_engine._alert_ids, set)
-        await fresh_engine.set_alert(
-            alert_type="price", symbol="X", exchange="NSE",
-            price=100, direction="above",
-        )
+        with patch(SPOT_PRICE_PATH, return_value=80.0):
+            await fresh_engine.set_alert(
+                alert_type="price", symbol="X", exchange="NSE",
+                price=100,
+            )
         assert 1 in fresh_engine._alert_ids
 
     @pytest.mark.asyncio
-    async def test_price_alert_direction_validation(self, fresh_engine):
-        with pytest.raises(ValidationError, match="above.*below"):
-            await fresh_engine.set_alert(
+    async def test_price_alert_auto_direction_above(self, fresh_engine):
+        """When current < alert price, direction should be auto-set to 'above'."""
+        with patch(SPOT_PRICE_PATH, return_value=80.0):
+            result = await fresh_engine.set_alert(
                 alert_type="price", symbol="X", exchange="NSE",
-                price=100, direction="sideways",
+                price=100,
             )
+        assert result["direction"] == "above"
+
+    @pytest.mark.asyncio
+    async def test_price_alert_auto_direction_below(self, fresh_engine):
+        """When current > alert price, direction should be auto-set to 'below'."""
+        with patch(SPOT_PRICE_PATH, return_value=120.0):
+            result = await fresh_engine.set_alert(
+                alert_type="price", symbol="X", exchange="NSE",
+                price=100,
+            )
+        assert result["direction"] == "below"
+
+    @pytest.mark.asyncio
+    async def test_price_alert_equal_to_current_raises(self, fresh_engine):
+        """Alert price equal to current price should raise ValidationError."""
+        with pytest.raises(ValidationError, match="equals current price"):
+            with patch(SPOT_PRICE_PATH, return_value=100.0):
+                await fresh_engine.set_alert(
+                    alert_type="price", symbol="X", exchange="NSE",
+                    price=100,
+                )
 
 
 # ── Alert Manager tests ─────────────────────────────────────────
@@ -499,7 +536,7 @@ class TestAlertManager:
         })
         # Add a fake position so has_work is True
         fresh_engine._positions[99] = Position(
-            99, "X", "NSE", "BUY", 100, 90, 200, 1, False, "test"
+            99, "X", "NSE", "BUY", 100, 90, 200, 1, None, "test"
         )
         result = await fresh_engine.alert_manager()
         assert result["success"] is True

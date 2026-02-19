@@ -33,3 +33,7 @@ settings.yml
 .env*.local
 .gemini
 opencode.json
+
+# Data files
+*.db
+/export

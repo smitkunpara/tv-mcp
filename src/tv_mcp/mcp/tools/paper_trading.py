@@ -85,15 +85,16 @@ async def place_order(
             description="Number of lots/quantity to trade. REQUIRED.",
         ),
     ],
-    trailing_sl: Annotated[
-        bool,
+    trailing_sl_step_pct: Annotated[
+        Optional[float],
         Field(
             description=(
-                "Enable trailing stop loss. Use when strong directional "
-                "movement is expected. Default: false."
+                "Trailing stop-loss step as a percentage of current price. "
+                "Provide this value (e.g. 0.5 for 0.5%) to enable trailing SL. "
+                "Omit or set to None to disable trailing SL."
             ),
         ),
-    ] = False,
+    ] = None,
 ) -> str:
     """
     Place a paper trading order with entry price, stop-loss, target, and lot size.
@@ -101,6 +102,7 @@ async def place_order(
     The system automatically determines BUY/SELL based on entry vs target.
     A background screener starts immediately to monitor SL/target hits.
     Risk:Reward ratio is validated against the configured minimum.
+    Provide trailing_sl_step_pct to enable trailing stop loss.
     Call alert_manager after placing to receive SL/target notifications.
     """
     try:
@@ -111,7 +113,7 @@ async def place_order(
             stop_loss=stop_loss,
             target=target,
             lot_size=lot_size,
-            trailing_sl=trailing_sl,
+            trailing_sl_step_pct=trailing_sl_step_pct,
         )
         result = await _inject_alerts_if_enabled(result)
         return serialize_success(result)
@@ -214,13 +216,10 @@ async def set_alert(
     price: Annotated[
         Optional[float],
         Field(
-            description="Target price level for price alert. Required for price alerts.",
-        ),
-    ] = None,
-    direction: Annotated[
-        Optional[str],
-        Field(
-            description="'above' or 'below' — trigger when price crosses this level. Default: 'above'.",
+            description=(
+                "Target price level for price alert. Required for price alerts. "
+                "Direction (above/below) is auto-detected from the current market price."
+            ),
         ),
     ] = None,
     minutes: Annotated[
@@ -234,7 +233,10 @@ async def set_alert(
     Set a price alert or time alert.
 
     Price alerts monitor a symbol and trigger when the price crosses
-    the specified level. Time alerts trigger after the specified minutes.
+    the specified level. The trigger direction (above/below) is automatically
+    determined by comparing the alert price against the current market price —
+    no need to specify it manually.
+    Time alerts trigger after the specified minutes.
     Time alerts are one-shot — set a new one if you need another ping.
     After setting, call alert_manager to wait for the trigger.
     """
@@ -244,7 +246,6 @@ async def set_alert(
             symbol=symbol,
             exchange=exchange,
             price=price,
-            direction=direction,
             minutes=minutes,
         )
         result = await _inject_alerts_if_enabled(result)
