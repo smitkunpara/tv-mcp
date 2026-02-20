@@ -109,8 +109,10 @@ def get_current_spot_price(symbol: str, exchange: str) -> float:
     scraper = Overview(export_result=False)
     result = scraper.get_overview(exchange=exchange, symbol=symbol, fields=["close"])
     if result.get("status") == "success":
-        return result.get("data", {}).get("close", 0.0)
-    raise Exception(f"Failed to fetch spot price: {result.get('error')}")
+        price = (result.get("data") or {}).get("close")
+        if price is not None:
+            return float(price)
+    raise Exception(f"Failed to fetch spot price for {symbol}: {result.get('error', 'price unavailable or None')}")
 
 
 def fetch_nse_option_chain_oi(
@@ -130,17 +132,11 @@ def fetch_nse_option_chain_oi(
     # Validate expiry date
     validation_result = validate_nse_expiry_date(symbol, expiry_date)
     if not validation_result.get("valid"):
-        # Return with valid dates for AI guidance
-        error_msg = f"❌ Invalid expiry date '{expiry_date}' for {symbol}.\n\n"
-        error_msg += f"Valid expiry dates for {symbol} are:\n"
         valid_dates = validation_result.get("valid_dates", [])
-        for i, date in enumerate(valid_dates, 1):
-            error_msg += f"{i}. {date}\n"
-        error_msg += f"\nPlease use one of these dates in DD-MMM-YYYY format (e.g., '24-Feb-2026')."
         return {
             "success": False,
-            "message": error_msg,
-            "valid_dates": valid_dates
+            "message": f"Invalid expiry date '{expiry_date}' for {symbol}. Use one of the dates in valid_dates.",
+            "valid_dates": valid_dates,
         }
 
     url = f"https://www.nseindia.com/api/option-chain-v3?type=Indices&symbol={symbol.upper()}&expiry={expiry_date}"
@@ -167,24 +163,24 @@ def fetch_nse_option_chain_oi(
         if not filtered or "data" not in filtered:
             return {"success": False, "message": f"No data found for {symbol} with expiry {expiry_date}."}
 
-        # Clean individual option data
-        def clean_opt(opt):
-            if not opt: return None
-            return {
-                "oi": opt.get("openInterest"),
-                "oi_change": opt.get("changeinOpenInterest"),
-                "vol": opt.get("totalTradedVolume"),
-                "iv": opt.get("impliedVolatility"),
-                "ltp": opt.get("lastPrice"),
-                "change_in_points": opt.get("change"),
-            }
-
         cleaned_rows = []
         for row in filtered["data"]:
+            ce = row.get("CE") or {}
+            pe = row.get("PE") or {}
             cleaned_rows.append({
                 "strike": row.get("strikePrice"),
-                "CE": clean_opt(row.get("CE")),
-                "PE": clean_opt(row.get("PE")),
+                "ce_oi": ce.get("openInterest"),
+                "ce_oi_chg": ce.get("changeinOpenInterest"),
+                "ce_vol": ce.get("totalTradedVolume"),
+                "ce_iv": ce.get("impliedVolatility"),
+                "ce_ltp": ce.get("lastPrice"),
+                "ce_chg": ce.get("change"),
+                "pe_oi": pe.get("openInterest"),
+                "pe_oi_chg": pe.get("changeinOpenInterest"),
+                "pe_vol": pe.get("totalTradedVolume"),
+                "pe_iv": pe.get("impliedVolatility"),
+                "pe_ltp": pe.get("lastPrice"),
+                "pe_chg": pe.get("change"),
             })
 
         # Totals and PCR

@@ -49,6 +49,7 @@ class Position:
         self.trailing_sl: bool = bool(trailing_sl_step_pct and trailing_sl_step_pct > 0)
         self.opened_at_ist = opened_at_ist
         self.screener_task: Optional[asyncio.Task] = None
+        self._pending_close: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize position to a plain dict for API responses."""
@@ -427,6 +428,11 @@ class PaperTradingEngine:
                 if current_price is None:
                     continue
 
+                # ── Handle pending manual close ──
+                if pos._pending_close:
+                    await self._close_position_internal(order_id, current_price, "MANUAL_CLOSE")
+                    return
+
                 # ── Check SL / Target / Trailing SL ──
                 hit: Optional[str] = None
 
@@ -613,7 +619,13 @@ class PaperTradingEngine:
         )
 
     async def close_position(self, order_id: int) -> Dict[str, Any]:
-        """Manually close a position at current market price."""
+        """Flag a position for manual closure at the next live streamed price.
+
+        Instead of fetching the price externally (which fails for options symbols),
+        the existing screener stream is reused: the screener checks this flag on
+        each price tick and calls _close_position_internal with the live price.
+        A trade_close alert fires automatically once the position is actually closed.
+        """
         async with self._positions_lock:
             pos = self._positions.get(order_id)
             if pos is None:
@@ -621,26 +633,18 @@ class PaperTradingEngine:
                     "success": False,
                     "message": f"No open position found with order_id {order_id}.",
                 }
+            pos._pending_close = True
             symbol = pos.symbol
             exchange = pos.exchange
 
-        # Fetch current price
-        try:
-            from tv_mcp.services.options import get_current_spot_price
-
-            current_price = get_current_spot_price(symbol, exchange)
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Failed to fetch current price for {exchange}:{symbol}: {e}",
-            }
-
-        await self._close_position_internal(order_id, current_price, "MANUAL_CLOSE")
         return {
             "success": True,
-            "message": f"Position #{order_id} closed manually at {current_price}.",
             "order_id": order_id,
-            "exit_price": current_price,
+            "message": (
+                f"Position #{order_id} ({exchange}:{symbol}) flagged for closure. "
+                "It will close at the next live price from the stream and a "
+                "trade_close alert will fire via alert_manager."
+            ),
         }
 
     def _record_closed_trade(
@@ -809,6 +813,10 @@ class PaperTradingEngine:
             alert_id = self._next_alert_id
             self._next_alert_id += 1
 
+            sym: Optional[str] = None
+            dir_: Optional[str] = None
+            current_price: Optional[float] = None
+
             if alert_type == "price":
                 if not symbol or not exchange or price is None:
                     raise ValidationError(
@@ -881,15 +889,15 @@ class PaperTradingEngine:
             "type": alert_type,
             "message": f"Alert #{alert_id} ({alert_type}) set successfully.",
         }
-        if alert_type == "price":
+        if alert_type == "price" and price is not None and sym is not None and dir_ is not None:
             result["alert_price"] = float(price)
             result["direction"] = dir_
             if current_price is not None:
-                result["current_price"] = current_price
+                result["current_price"] = float(current_price)
                 result["message"] = (
                     f"Alert #{alert_id} set: will trigger when {sym} "
                     f"{'rises above' if dir_ == 'above' else 'drops below'} "
-                    f"{float(price)} (current price: {current_price})."
+                    f"{float(price)} (current price: {float(current_price)})."
                 )
         return result
 

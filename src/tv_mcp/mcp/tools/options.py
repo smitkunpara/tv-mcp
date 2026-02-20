@@ -37,6 +37,9 @@ async def get_nse_option_chain_oi(
     """
     try:
         result = fetch_nse_option_chain_oi(symbol=symbol, expiry_date=expiry_date)
+        if not result.get("success"):
+            details = {"valid_dates": result["valid_dates"]} if result.get("valid_dates") else None
+            return serialize_error(result.get("message", "Unknown error"), details=details)
         return serialize_success(result)
     except ValidationError as e:
         return serialize_error(str(e))

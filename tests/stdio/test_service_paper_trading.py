@@ -2,7 +2,9 @@
 Unit tests for the Paper Trading Engine.
 
 Screener loops use WebSocket streaming for real-time price monitoring.
-Tests mock get_current_spot_price (used only in manual close_position calls).
+Tests mock get_current_spot_price (used for place_order and set_alert spot-price lookups).
+close_position now uses a pending-flag approach: the screener closes the position at
+the next streamed price; tests that need immediate PnL/DB effects call _close_position_internal.
 """
 
 import asyncio
@@ -24,11 +26,12 @@ def fresh_engine(tmp_path):
     """Reset the singleton and use a temp DB for every test."""
     PaperTradingEngine._instance = None
     engine = PaperTradingEngine()
-    # Override DB path to temp dir
+    # Override DB path to temp dir BEFORE state is loaded
     engine._initialized = False
     engine.initialize()
     engine._db_path = str(tmp_path / "test_trades.db")
     engine._init_db()
+    engine._load_state_from_db()  # reload counters from empty temp DB → starts at 1
     yield engine
     PaperTradingEngine._instance = None
 
@@ -257,10 +260,13 @@ class TestClosePosition:
                 entry_price=23000, stop_loss=22700, target=23600,
                 lot_size=1,
             )
-        with patch(SPOT_PRICE_PATH, return_value=23200.0):
-            result = await fresh_engine.close_position(order["order_id"])
+        result = await fresh_engine.close_position(order["order_id"])
         assert result["success"] is True
-        assert result["exit_price"] == 23200.0
+        assert result["order_id"] == order["order_id"]
+        # Position is flagged for closure; actual close fires at next streamed price
+        async with fresh_engine._positions_lock:
+            pos = fresh_engine._positions.get(order["order_id"])
+        assert pos is not None and pos._pending_close is True
 
     @pytest.mark.asyncio
     async def test_close_position_not_found(self, fresh_engine):
@@ -276,8 +282,8 @@ class TestClosePosition:
                 entry_price=23000, stop_loss=22700, target=23600,
                 lot_size=1,
             )
-        with patch(SPOT_PRICE_PATH, return_value=23200.0):
-            await fresh_engine.close_position(order["order_id"])
+        # Simulate screener closing at live price
+        await fresh_engine._close_position_internal(order["order_id"], 23200.0, "MANUAL_CLOSE")
 
         # Verify DB
         conn = sqlite3.connect(fresh_engine._db_path)
@@ -295,9 +301,8 @@ class TestClosePosition:
                 entry_price=100, stop_loss=90, target=200,
                 lot_size=10,
             )
-        # Close with profit
-        with patch(SPOT_PRICE_PATH, return_value=150.0):
-            await fresh_engine.close_position(order["order_id"])
+        # Simulate screener closing at live price
+        await fresh_engine._close_position_internal(order["order_id"], 150.0, "MANUAL_CLOSE")
 
         # PnL = (150-100) * 10 = 500, invested = 100 * 10 = 1000
         # Implementation: _capital += invested + pnl (capital not deducted on open)
@@ -332,8 +337,7 @@ class TestViewPositions:
                 entry_price=100, stop_loss=90, target=200,
                 lot_size=1,
             )
-        with patch(SPOT_PRICE_PATH, return_value=150.0):
-            await fresh_engine.close_position(order["order_id"])
+        await fresh_engine._close_position_internal(order["order_id"], 150.0, "MANUAL_CLOSE")
         result = await fresh_engine.view_positions(filter_type="closed")
         assert result["success"] is True
         assert len(result["positions"]) == 1
@@ -373,8 +377,7 @@ class TestViewPositions:
                 symbol="B", exchange="NSE",
                 entry_price=100, stop_loss=90, target=200, lot_size=1,
             )
-        with patch(SPOT_PRICE_PATH, return_value=150.0):
-            await fresh_engine.close_position(o1["order_id"])
+        await fresh_engine._close_position_internal(o1["order_id"], 150.0, "MANUAL_CLOSE")
         result = await fresh_engine.view_positions(filter_type="all")
         assert result["success"] is True
         assert result["count"] == 2  # 1 open + 1 closed
@@ -404,8 +407,7 @@ class TestShowCapital:
                 entry_price=100, stop_loss=90, target=200,
                 lot_size=10,
             )
-        with patch(SPOT_PRICE_PATH, return_value=200.0):
-            await fresh_engine.close_position(order["order_id"])
+        await fresh_engine._close_position_internal(order["order_id"], 200.0, "MANUAL_CLOSE")
 
         result = await fresh_engine.show_capital()
         assert result["total_realized_pnl"] == 1000.0

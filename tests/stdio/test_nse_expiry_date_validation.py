@@ -228,10 +228,8 @@ class TestFetchNSEOptionChainOIWithValidation:
         result = fetch_nse_option_chain_oi("NIFTY", "01-Jan-2026")
 
         assert result["success"] is False
-        assert "Invalid expiry date" in result["message"]
-        assert "24-Feb-2026" in result["message"]
-        assert "02-Mar-2026" in result["message"]
-        assert "10-Mar-2026" in result["message"]
+        assert "invalid" in result["message"].lower()
+        # valid_dates is a separate machine-readable field, not embedded in message
         assert result["valid_dates"] == self.MOCK_VALID_DATES
 
     @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
@@ -248,11 +246,11 @@ class TestFetchNSEOptionChainOIWithValidation:
         result = fetch_nse_option_chain_oi("NIFTY", "01-Jan-2026")
 
         message = result["message"]
-        # Check for AI-friendly formatting
-        assert "❌" in message  # Visual indicator
-        assert "Valid expiry dates" in message
-        assert "numbered list" not in message  # Uses numbers 1., 2., etc
-        assert "DD-MMM-YYYY" in message  # Shows format example
+        # Short, clean message — no emoji, no embedded date lists
+        assert "❌" not in message
+        assert "invalid" in message.lower()
+        # Dates are cleanly separated into valid_dates
+        assert result["valid_dates"] == ["24-Feb-2026", "02-Mar-2026"]
 
     def test_unsupported_symbol_raises_error(self):
         """Test that unsupported symbols raise ValidationError."""
