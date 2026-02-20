@@ -44,10 +44,11 @@ async def place_order_endpoint(request: PlaceOrderRequest) -> dict:
         result = await _engine().place_order(
             symbol=request.symbol,
             exchange=request.exchange,
-            entry_price=request.entry_price,
             stop_loss=request.stop_loss,
             target=request.target,
             lot_size=request.lot_size,
+            entry_price=request.entry_price,
+            order_type=request.order_type,
             trailing_sl_step_pct=request.trailing_sl_step_pct,
         )
         return {"data": toon_encode(result)}

@@ -20,7 +20,13 @@ from tv_mcp.transforms.time import IST_TZ
 
 
 class Position:
-    """In-memory representation of an open paper trading position."""
+    """In-memory representation of a paper trading position.
+
+    Lifecycle:  PENDING → OPEN → CLOSED
+      - PENDING: order placed, waiting for market price to reach entry_price.
+      - OPEN:    entry triggered, SL/target monitoring active.
+      - CLOSED:  position closed (persisted to DB, removed from memory).
+    """
 
     def __init__(
         self,
@@ -49,11 +55,14 @@ class Position:
         self.trailing_sl: bool = bool(trailing_sl_step_pct and trailing_sl_step_pct > 0)
         self.opened_at_ist = opened_at_ist
         self.screener_task: Optional[asyncio.Task] = None
-        self._pending_close: bool = False
+        # Status: "PENDING" (waiting for entry) or "OPEN" (entry filled)
+        self.status: str = "PENDING"
+        # Timestamp when the entry price was actually filled
+        self.filled_at_ist: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize position to a plain dict for API responses."""
-        return {
+        d: Dict[str, Any] = {
             "order_id": self.order_id,
             "symbol": self.symbol,
             "exchange": self.exchange,
@@ -65,9 +74,12 @@ class Position:
             "lot_size": self.lot_size,
             "trailing_sl": self.trailing_sl,
             "trailing_sl_step_pct": self.trailing_sl_step_pct,
-            "opened_at": self.opened_at_ist,
-            "status": "OPEN",
+            "placed_at": self.opened_at_ist,
+            "status": self.status,
         }
+        if self.filled_at_ist:
+            d["filled_at"] = self.filled_at_ist
+        return d
 
 
 def _get_project_root() -> str:
@@ -289,28 +301,59 @@ class PaperTradingEngine:
         self,
         symbol: str,
         exchange: str,
-        entry_price: float,
         stop_loss: float,
         target: float,
         lot_size: int,
+        entry_price: Optional[float] = None,
+        order_type: str = "LIMIT",
         trailing_sl_step_pct: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Place a paper trade order and start a background screener."""
+        """Place a paper trade order.
+
+        order_type:
+          - 'LIMIT' (default): position starts as PENDING, waits for price to
+            reach entry_price before becoming OPEN.  entry_price is REQUIRED.
+          - 'MARKET': fills immediately at the current market price.
+            entry_price is ignored / fetched automatically.
+        """
         # Input validation
         symbol = symbol.strip().upper()
         exchange = exchange.strip().upper()
+        order_type = order_type.strip().upper()
         if not symbol:
             raise ValidationError("Symbol is required.")
         if not exchange:
             raise ValidationError("Exchange is required.")
-        if entry_price <= 0:
-            raise ValidationError("Entry price must be greater than 0.")
+        if order_type not in ("LIMIT", "MARKET"):
+            raise ValidationError(
+                f"Invalid order_type '{order_type}'. Use 'LIMIT' or 'MARKET'."
+            )
         if stop_loss <= 0:
             raise ValidationError("Stop loss must be greater than 0.")
         if target <= 0:
             raise ValidationError("Target must be greater than 0.")
         if lot_size <= 0:
             raise ValidationError("Lot size must be greater than 0.")
+
+        # ── MARKET order: fetch current price as entry ──
+        if order_type == "MARKET":
+            try:
+                from tv_mcp.services.options import get_current_spot_price
+                entry_price = get_current_spot_price(symbol, exchange)
+            except Exception as e:
+                raise ValidationError(
+                    f"Cannot place MARKET order — failed to fetch current price "
+                    f"for {exchange}:{symbol}: {e}"
+                )
+        else:
+            # LIMIT order: entry_price is required
+            if entry_price is None:
+                raise ValidationError(
+                    "entry_price is required for LIMIT orders."
+                )
+
+        if entry_price <= 0:
+            raise ValidationError("Entry price must be greater than 0.")
 
         # Determine side
         if entry_price < target:
@@ -330,6 +373,8 @@ class PaperTradingEngine:
 
         # Risk-reward validation
         self._validate_risk_reward(entry_price, stop_loss, target)
+
+        now_ist = datetime.now(IST_TZ).strftime("%d-%m-%Y %I:%M:%S %p IST")
 
         async with self._positions_lock:
             # Max open positions check
@@ -354,7 +399,6 @@ class PaperTradingEngine:
             # Create position
             order_id = self._next_order_id
             self._next_order_id += 1
-            opened_at = datetime.now(IST_TZ).strftime("%d-%m-%Y %I:%M:%S %p IST")
 
             pos = Position(
                 order_id=order_id,
@@ -366,10 +410,15 @@ class PaperTradingEngine:
                 target=target,
                 lot_size=lot_size,
                 trailing_sl_step_pct=trailing_sl_step_pct,
-                opened_at_ist=opened_at,
+                opened_at_ist=now_ist,
             )
 
-            # Start screener task
+            # Market orders start immediately as OPEN
+            if order_type == "MARKET":
+                pos.status = "OPEN"
+                pos.filled_at_ist = now_ist
+
+            # Start screener task (for MARKET orders it skips PENDING phase)
             task = asyncio.create_task(self._screener_loop(order_id))
             pos.screener_task = task
             self._positions[order_id] = pos
@@ -379,9 +428,13 @@ class PaperTradingEngine:
         # Persist updated order counter to DB
         self._save_state_to_db()
 
-        return {
+        status = pos.status  # "OPEN" for MARKET, "PENDING" for LIMIT
+
+        result: Dict[str, Any] = {
             "success": True,
             "order_id": order_id,
+            "order_type": order_type,
+            "status": status,
             "symbol": symbol,
             "exchange": exchange,
             "side": side,
@@ -391,9 +444,13 @@ class PaperTradingEngine:
             "lot_size": lot_size,
             "trailing_sl": bool(trailing_sl_step_pct and trailing_sl_step_pct > 0),
             "trailing_sl_step_pct": trailing_sl_step_pct,
-            "opened_at": opened_at,
-            "message": (
-                f"Order #{order_id} placed: {side} {lot_size} lots of "
+            "placed_at": now_ist,
+        }
+
+        if order_type == "MARKET":
+            result["filled_at"] = now_ist
+            result["message"] = (
+                f"MARKET order #{order_id} FILLED: {side} {lot_size} lots of "
                 f"{exchange}:{symbol} @ {entry_price}. "
                 f"SL: {stop_loss}, Target: {target}. "
                 + (
@@ -401,14 +458,58 @@ class PaperTradingEngine:
                     if trailing_sl_step_pct and trailing_sl_step_pct > 0
                     else ""
                 )
-                + "Screener monitoring started automatically."
-            ),
-        }
+                + "Position is now OPEN, screener monitoring SL/target."
+            )
+        else:
+            result["message"] = (
+                f"LIMIT order #{order_id} placed (PENDING): {side} {lot_size} lots of "
+                f"{exchange}:{symbol}. Entry will trigger at {entry_price}. "
+                f"SL: {stop_loss}, Target: {target}. "
+                + (
+                    f"Trailing SL enabled at {trailing_sl_step_pct}% step. "
+                    if trailing_sl_step_pct and trailing_sl_step_pct > 0
+                    else ""
+                )
+                + "Screener monitoring started — waiting for entry price."
+            )
+
+        # Push entry_filled alert for market orders (AI gets notified)
+        if order_type == "MARKET":
+            await self._push_alert_event(
+                {
+                    "source": "entry_filled",
+                    "order_id": order_id,
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "side": side,
+                    "entry_price": entry_price,
+                    "current_price": entry_price,
+                    "order_type": "MARKET",
+                    "message": (
+                        f"MARKET order #{order_id} FILLED: {side} "
+                        f"{lot_size} lots of {exchange}:{symbol} "
+                        f"@ {entry_price}. Position is now OPEN. "
+                        f"SL: {stop_loss}, Target: {target}."
+                    ),
+                }
+            )
+
+        return result
 
     # ── Screener / Position Monitoring ────────────────────────────
 
     async def _screener_loop(self, order_id: int) -> None:
-        """Background task: monitor one position for SL / target hits via streaming."""
+        """Background task: monitor one position through PENDING → OPEN → CLOSED.
+
+        Phase 1 (PENDING): wait for the market price to reach entry_price.
+          - BUY : entry triggers when price ≤ entry_price  (price drops to our buy level)
+          - SELL: entry triggers when price ≥ entry_price  (price rises to our sell level)
+        Phase 2 (OPEN): monitor SL / target / trailing SL hits.
+
+        IMPORTANT: Only `qsd` (quote session data) packets are used for trading
+        decisions. `du` (chart data update) packets contain historical candle
+        closes that can falsely trigger entry/SL/target.
+        """
         # Get position info
         async with self._positions_lock:
             pos = self._positions.get(order_id)
@@ -422,18 +523,56 @@ class PaperTradingEngine:
                 async with self._positions_lock:
                     pos = self._positions.get(order_id)
                     if pos is None:
-                        return  # position was closed manually
+                        return  # position was closed/cancelled manually
 
                 current_price = update.get("price")
                 if current_price is None:
                     continue
 
-                # ── Handle pending manual close ──
-                if pos._pending_close:
-                    await self._close_position_internal(order_id, current_price, "MANUAL_CLOSE")
-                    return
+                # ── Filter: only use live quote data (qsd), skip chart candles (du) ──
+                # qsd packets always include prev_close_price; du packets set it to None.
+                if update.get("prev_close") is None:
+                    # Still check price alerts on all packets for responsiveness
+                    await self._check_price_alerts(pos.symbol, current_price)
+                    continue
 
-                # ── Check SL / Target / Trailing SL ──
+                # ── Phase 1: PENDING — wait for entry trigger ──
+                if pos.status == "PENDING":
+                    entry_hit = False
+                    if pos.side == "BUY" and current_price <= pos.entry_price:
+                        entry_hit = True
+                    elif pos.side == "SELL" and current_price >= pos.entry_price:
+                        entry_hit = True
+
+                    if entry_hit:
+                        pos.status = "OPEN"
+                        pos.filled_at_ist = datetime.now(IST_TZ).strftime(
+                            "%d-%m-%Y %I:%M:%S %p IST"
+                        )
+                        await self._push_alert_event(
+                            {
+                                "source": "entry_filled",
+                                "order_id": order_id,
+                                "symbol": pos.symbol,
+                                "exchange": pos.exchange,
+                                "side": pos.side,
+                                "entry_price": pos.entry_price,
+                                "current_price": current_price,
+                                "message": (
+                                    f"Order #{order_id} FILLED: {pos.side} "
+                                    f"{pos.lot_size} lots of {pos.exchange}:{pos.symbol} "
+                                    f"@ {pos.entry_price}. Position is now OPEN. "
+                                    f"SL: {pos.stop_loss}, Target: {pos.target}."
+                                ),
+                            }
+                        )
+                    # Whether entry hit or not, skip SL/target on this tick.
+                    # When entry just triggered, wait for the NEXT live price
+                    # before checking SL/target. When still pending, just wait.
+                    await self._check_price_alerts(pos.symbol, current_price)
+                    continue
+
+                # ── Phase 2: OPEN — check SL / Target / Trailing SL ──
                 hit: Optional[str] = None
 
                 if pos.side == "BUY":
@@ -468,40 +607,7 @@ class PaperTradingEngine:
                             pos.current_sl = new_sl
 
                 # ── Check price alerts for this symbol ──
-                async with self._alerts_lock:
-                    triggered: List[int] = []
-                    for aid, alert in list(self._alerts.items()):
-                        if (
-                            alert["type"] == "price"
-                            and alert["symbol"] == pos.symbol
-                        ):
-                            if (
-                                alert["direction"] == "above"
-                                and current_price >= alert["price"]
-                            ) or (
-                                alert["direction"] == "below"
-                                and current_price <= alert["price"]
-                            ):
-                                triggered.append(aid)
-
-                    for aid in triggered:
-                        alert = self._alerts.pop(aid)
-                        self._alert_ids.discard(aid)
-                        await self._push_alert_event(
-                            {
-                                "source": "price_alert",
-                                "alert_id": aid,
-                                "symbol": alert["symbol"],
-                                "price": alert["price"],
-                                "direction": alert["direction"],
-                                "current_price": current_price,
-                                "message": (
-                                    f"Price alert triggered: {alert['symbol']} "
-                                    f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
-                                    f"{alert['price']} (current: {current_price})"
-                                ),
-                            }
-                        )
+                await self._check_price_alerts(pos.symbol, current_price)
 
                 # ── Close position if SL / Target hit ──
                 if hit:
@@ -509,6 +615,43 @@ class PaperTradingEngine:
                     return
         except Exception:
             pass  # Stream ended or error occurred
+
+    async def _check_price_alerts(self, symbol: str, current_price: float) -> None:
+        """Check and trigger any price alerts for the given symbol."""
+        async with self._alerts_lock:
+            triggered: List[int] = []
+            for aid, alert in list(self._alerts.items()):
+                if (
+                    alert["type"] == "price"
+                    and alert["symbol"] == symbol
+                ):
+                    if (
+                        alert["direction"] == "above"
+                        and current_price >= alert["price"]
+                    ) or (
+                        alert["direction"] == "below"
+                        and current_price <= alert["price"]
+                    ):
+                        triggered.append(aid)
+
+            for aid in triggered:
+                alert = self._alerts.pop(aid)
+                self._alert_ids.discard(aid)
+                await self._push_alert_event(
+                    {
+                        "source": "price_alert",
+                        "alert_id": aid,
+                        "symbol": alert["symbol"],
+                        "price": alert["price"],
+                        "direction": alert["direction"],
+                        "current_price": current_price,
+                        "message": (
+                            f"Price alert triggered: {alert['symbol']} "
+                            f"{'reached above' if alert['direction'] == 'above' else 'dropped below'} "
+                            f"{alert['price']} (current: {current_price})"
+                        ),
+                    }
+                )
 
     async def _price_only_monitor(self, symbol: str, exchange: str) -> None:
         """Lightweight background task that only checks price alerts via streaming."""
@@ -566,16 +709,24 @@ class PaperTradingEngine:
 
     async def _close_position_internal(
         self, order_id: int, exit_price: float, reason: str
-    ) -> None:
-        """Close a position, persist to DB, update capital, push alert."""
+    ) -> Dict[str, Any]:
+        """Close a position, persist to DB, update capital, push alert.
+
+        Returns a result dict with PnL details (or empty dict if position
+        was already gone).
+        """
         async with self._positions_lock:
             pos = self._positions.pop(order_id, None)
             if pos is None:
-                return
+                return {}
 
             # Cancel screener if still running
             if pos.screener_task and not pos.screener_task.done():
                 pos.screener_task.cancel()
+
+            # Remove from screener tasks tracking
+            if self._screener_tasks.get(pos.symbol) is pos.screener_task:
+                del self._screener_tasks[pos.symbol]
 
             # Calculate PnL
             if pos.side == "BUY":
@@ -586,8 +737,9 @@ class PaperTradingEngine:
             invested = pos.entry_price * pos.lot_size
             pnl_pct = (pnl / invested) * 100 if invested > 0 else 0.0
 
-            # Update capital (return invested + pnl)
-            self._capital += invested + pnl
+            # Update capital — only add PnL (capital is never deducted on open;
+            # 'available' is computed on-the-fly as _capital minus invested-in-open).
+            self._capital += pnl
             self._total_pnl += pnl
 
         # Persist updated capital/PnL to DB
@@ -596,55 +748,106 @@ class PaperTradingEngine:
         # Persist to DB
         self._record_closed_trade(pos, exit_price, reason, pnl, pnl_pct)
 
+        close_event = {
+            "source": "trade_close",
+            "order_id": order_id,
+            "symbol": pos.symbol,
+            "exchange": pos.exchange,
+            "side": pos.side,
+            "entry_price": pos.entry_price,
+            "exit_price": exit_price,
+            "close_reason": reason,
+            "pnl": round(pnl, 2),
+            "pnl_percentage": round(pnl_pct, 2),
+            "message": (
+                f"Position #{order_id} closed ({reason}): "
+                f"{pos.side} {pos.lot_size} lots of {pos.exchange}:{pos.symbol} "
+                f"@ entry {pos.entry_price} → exit {exit_price}. "
+                f"PnL: {pnl:+.2f} ({pnl_pct:+.2f}%)"
+            ),
+        }
+
         # Push event to alert queue and cache
-        await self._push_alert_event(
-            {
-                "source": "trade_close",
-                "order_id": order_id,
-                "symbol": pos.symbol,
-                "exchange": pos.exchange,
-                "side": pos.side,
-                "entry_price": pos.entry_price,
-                "exit_price": exit_price,
-                "close_reason": reason,
-                "pnl": round(pnl, 2),
-                "pnl_percentage": round(pnl_pct, 2),
-                "message": (
-                    f"Position #{order_id} closed ({reason}): "
-                    f"{pos.side} {pos.lot_size} lots of {pos.exchange}:{pos.symbol} "
-                    f"@ entry {pos.entry_price} → exit {exit_price}. "
-                    f"PnL: {pnl:+.2f} ({pnl_pct:+.2f}%)"
-                ),
-            }
-        )
+        await self._push_alert_event(close_event)
+
+        return close_event
 
     async def close_position(self, order_id: int) -> Dict[str, Any]:
-        """Flag a position for manual closure at the next live streamed price.
+        """Close or cancel a position.
 
-        Instead of fetching the price externally (which fails for options symbols),
-        the existing screener stream is reused: the screener checks this flag on
-        each price tick and calls _close_position_internal with the live price.
-        A trade_close alert fires automatically once the position is actually closed.
+        - PENDING positions are cancelled (no PnL, no DB record).
+        - OPEN positions are closed at the current market price.
         """
         async with self._positions_lock:
             pos = self._positions.get(order_id)
             if pos is None:
                 return {
                     "success": False,
-                    "message": f"No open position found with order_id {order_id}.",
+                    "message": f"No open/pending position found with order_id {order_id}.",
                 }
-            pos._pending_close = True
             symbol = pos.symbol
             exchange = pos.exchange
+            was_pending = pos.status == "PENDING"
+
+        # ── PENDING: just cancel the order ──
+        if was_pending:
+            async with self._positions_lock:
+                pos = self._positions.pop(order_id, None)
+                if pos is None:
+                    return {
+                        "success": False,
+                        "message": f"Position #{order_id} was already closed.",
+                    }
+                # Cancel screener
+                if pos.screener_task and not pos.screener_task.done():
+                    pos.screener_task.cancel()
+                if self._screener_tasks.get(pos.symbol) is pos.screener_task:
+                    del self._screener_tasks[pos.symbol]
+
+            cancel_event = {
+                "source": "order_cancelled",
+                "order_id": order_id,
+                "symbol": symbol,
+                "exchange": exchange,
+                "side": pos.side,
+                "entry_price": pos.entry_price,
+                "message": (
+                    f"Pending order #{order_id} CANCELLED: {pos.side} "
+                    f"{pos.lot_size} lots of {exchange}:{symbol} "
+                    f"@ {pos.entry_price}. Entry was never triggered."
+                ),
+            }
+            await self._push_alert_event(cancel_event)
+            return {
+                "success": True,
+                **cancel_event,
+            }
+
+        # ── OPEN: close at current market price ──
+        try:
+            from tv_mcp.services.options import get_current_spot_price
+            current_price = get_current_spot_price(symbol, exchange)
+        except Exception as e:
+            return {
+                "success": False,
+                "message": (
+                    f"Failed to fetch current price for {exchange}:{symbol}: {e}. "
+                    "Position remains open."
+                ),
+            }
+
+        # Close immediately at current price
+        result = await self._close_position_internal(order_id, current_price, "MANUAL_CLOSE")
+
+        if not result:
+            return {
+                "success": False,
+                "message": f"Position #{order_id} was already closed.",
+            }
 
         return {
             "success": True,
-            "order_id": order_id,
-            "message": (
-                f"Position #{order_id} ({exchange}:{symbol}) flagged for closure. "
-                "It will close at the next live price from the stream and a "
-                "trade_close alert will fire via alert_manager."
-            ),
+            **result,
         }
 
     def _record_closed_trade(
@@ -695,7 +898,11 @@ class PaperTradingEngine:
         filter_type: Optional[str] = None,
         order_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Return open, closed, or all positions. Provide filter_type OR order_id, not both."""
+        """Return pending, open, closed, or all positions.
+
+        filter_type: 'pending', 'open', 'closed', or 'all'.
+        Provide filter_type OR order_id, not both.
+        """
         if filter_type is not None and order_id is not None:
             return {
                 "success": False,
@@ -705,6 +912,17 @@ class PaperTradingEngine:
         # Default to 'all' if neither provided
         if filter_type is None and order_id is None:
             filter_type = "all"
+
+        # Validate filter_type
+        valid_filters = {"pending", "open", "closed", "all"}
+        if filter_type is not None and filter_type not in valid_filters:
+            return {
+                "success": False,
+                "message": (
+                    f"Invalid filter_type '{filter_type}'. "
+                    f"Use one of: {', '.join(sorted(valid_filters))}."
+                ),
+            }
 
         # Single order lookup
         if order_id is not None:
@@ -725,9 +943,19 @@ class PaperTradingEngine:
         # Filter-based lookup
         result: List[Dict[str, Any]] = []
 
+        if filter_type in ("pending", "all"):
+            async with self._positions_lock:
+                result.extend(
+                    p.to_dict() for p in self._positions.values()
+                    if p.status == "PENDING"
+                )
+
         if filter_type in ("open", "all"):
             async with self._positions_lock:
-                result.extend(p.to_dict() for p in self._positions.values())
+                result.extend(
+                    p.to_dict() for p in self._positions.values()
+                    if p.status == "OPEN"
+                )
 
         if filter_type in ("closed", "all"):
             result.extend(self._query_all_closed_trades())
@@ -774,22 +1002,31 @@ class PaperTradingEngine:
     async def show_capital(self) -> Dict[str, Any]:
         """Return current capital, PnL, and position summary."""
         async with self._positions_lock:
-            invested = sum(
+            reserved_pending = sum(
                 p.entry_price * p.lot_size for p in self._positions.values()
+                if p.status == "PENDING"
             )
-            open_count = len(self._positions)
+            invested_open = sum(
+                p.entry_price * p.lot_size for p in self._positions.values()
+                if p.status == "OPEN"
+            )
+            total_allocated = reserved_pending + invested_open
+            pending_count = sum(1 for p in self._positions.values() if p.status == "PENDING")
+            open_count = sum(1 for p in self._positions.values() if p.status == "OPEN")
 
         initial = self._initial_capital
         return {
             "success": True,
             "initial_capital": initial,
             "current_capital": round(self._capital, 2),
-            "invested_in_open_positions": round(invested, 2),
-            "available_fund": round(self._capital - invested, 2),
+            "reserved_for_pending_orders": round(reserved_pending, 2),
+            "invested_in_open_positions": round(invested_open, 2),
+            "available_fund": round(self._capital - total_allocated, 2),
             "total_realized_pnl": round(self._total_pnl, 2),
             "total_pnl_percentage": (
                 round((self._total_pnl / initial) * 100, 2) if initial > 0 else 0.0
             ),
+            "pending_orders_count": pending_count,
             "open_positions_count": open_count,
         }
 
@@ -934,6 +1171,7 @@ class PaperTradingEngine:
                         "order_id": pos.order_id,
                         "symbol": pos.symbol,
                         "exchange": pos.exchange,
+                        "status": pos.status,
                         "stop_loss": pos.current_sl,
                         "target": pos.target,
                         "side": pos.side,

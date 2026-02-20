@@ -61,12 +61,6 @@ async def place_order(
             description="Exchange (e.g., 'NSE', 'BSE', 'CRYPTO'). REQUIRED.",
         ),
     ],
-    entry_price: Annotated[
-        float,
-        Field(
-            description="Entry/limit price at which to buy or sell. REQUIRED.",
-        ),
-    ],
     stop_loss: Annotated[
         float,
         Field(
@@ -85,6 +79,24 @@ async def place_order(
             description="Number of lots/quantity to trade. REQUIRED.",
         ),
     ],
+    entry_price: Annotated[
+        Optional[float],
+        Field(
+            description=(
+                "Entry/limit price. REQUIRED for LIMIT orders. "
+                "Ignored for MARKET orders (current price is used automatically)."
+            ),
+        ),
+    ] = None,
+    order_type: Annotated[
+        str,
+        Field(
+            description=(
+                "Order type: 'MARKET' (fills immediately at current price) "
+                "or 'LIMIT' (waits for price to reach entry_price). Default: 'LIMIT'."
+            ),
+        ),
+    ] = "LIMIT",
     trailing_sl_step_pct: Annotated[
         Optional[float],
         Field(
@@ -97,22 +109,29 @@ async def place_order(
     ] = None,
 ) -> str:
     """
-    Place a paper trading order with entry price, stop-loss, target, and lot size.
+    Place a paper trading order — MARKET or LIMIT.
+
+    MARKET order: fills immediately at the current market price. No entry_price
+    needed. Position starts as OPEN and SL/target monitoring begins instantly.
+
+    LIMIT order (default): starts as PENDING. The screener monitors the market
+    and triggers entry when price reaches entry_price. Only then does SL/target
+    monitoring begin.
 
     The system automatically determines BUY/SELL based on entry vs target.
-    A background screener starts immediately to monitor SL/target hits.
     Risk:Reward ratio is validated against the configured minimum.
     Provide trailing_sl_step_pct to enable trailing stop loss.
-    Call alert_manager after placing to receive SL/target notifications.
+    Call alert_manager after placing to receive entry/SL/target notifications.
     """
     try:
         result = await _engine().place_order(
             symbol=symbol,
             exchange=exchange,
-            entry_price=entry_price,
             stop_loss=stop_loss,
             target=target,
             lot_size=lot_size,
+            entry_price=entry_price,
+            order_type=order_type,
             trailing_sl_step_pct=trailing_sl_step_pct,
         )
         result = await _inject_alerts_if_enabled(result)
@@ -132,10 +151,12 @@ async def close_position(
     ],
 ) -> str:
     """
-    Manually close an open position at the current market price.
+    Close or cancel a paper trading position.
 
-    Use this when analysis, news, or other factors suggest exiting
-    before SL or target is hit. The trade is recorded in the database.
+    - PENDING positions are cancelled immediately (no PnL, no DB record).
+    - OPEN positions are closed at the current market price with PnL recorded.
+
+    Use this when analysis, news, or other factors suggest exiting.
     """
     try:
         result = await _engine().close_position(order_id=order_id)
@@ -150,7 +171,7 @@ async def view_positions(
         Optional[str],
         Field(
             description=(
-                "Filter positions: 'open', 'closed', or 'all'. "
+                "Filter positions: 'pending', 'open', 'closed', or 'all'. "
                 "Cannot be used together with order_id."
             ),
         ),
@@ -168,8 +189,12 @@ async def view_positions(
     """
     View paper trading positions filtered by status or order ID.
 
+    Positions have 3 stages:
+    - PENDING: order placed, waiting for entry price to be hit.
+    - OPEN: entry triggered, actively monitoring SL/target.
+    - CLOSED: position closed (from database).
+
     Provide EITHER filter_type OR order_id, not both.
-    Returns open positions (in-memory) and/or closed positions (from database).
     """
     try:
         result = await _engine().view_positions(

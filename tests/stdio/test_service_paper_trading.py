@@ -2,9 +2,10 @@
 Unit tests for the Paper Trading Engine.
 
 Screener loops use WebSocket streaming for real-time price monitoring.
-Tests mock get_current_spot_price (used for place_order and set_alert spot-price lookups).
-close_position now uses a pending-flag approach: the screener closes the position at
-the next streamed price; tests that need immediate PnL/DB effects call _close_position_internal.
+Tests mock get_current_spot_price (used for place_order, close_position,
+and set_alert spot-price lookups).
+close_position now fetches the current price via get_current_spot_price
+and closes immediately, returning PnL details to the caller.
 """
 
 import asyncio
@@ -40,7 +41,7 @@ def fresh_engine(tmp_path):
 
 
 class TestPositionModel:
-    def test_to_dict_no_trailing(self):
+    def test_to_dict_default_pending(self):
         pos = Position(
             order_id=1, symbol="NIFTY", exchange="NSE", side="BUY",
             entry_price=23000.0, stop_loss=22800.0, target=23500.0,
@@ -49,14 +50,28 @@ class TestPositionModel:
         d = pos.to_dict()
         assert d["order_id"] == 1
         assert d["symbol"] == "NIFTY"
-        assert d["status"] == "OPEN"
+        assert d["status"] == "PENDING"  # default is PENDING
         assert d["side"] == "BUY"
         assert d["trailing_sl"] is False
         assert d["trailing_sl_step_pct"] is None
+        assert "placed_at" in d
+        assert "filled_at" not in d  # not filled yet
+
+    def test_to_dict_open_with_filled_at(self):
+        pos = Position(
+            order_id=2, symbol="NIFTY", exchange="NSE", side="BUY",
+            entry_price=23000.0, stop_loss=22800.0, target=23500.0,
+            lot_size=1, trailing_sl_step_pct=None, opened_at_ist="17-02-2026 10:00:00 AM IST",
+        )
+        pos.status = "OPEN"
+        pos.filled_at_ist = "17-02-2026 10:05:00 AM IST"
+        d = pos.to_dict()
+        assert d["status"] == "OPEN"
+        assert d["filled_at"] == "17-02-2026 10:05:00 AM IST"
 
     def test_to_dict_with_trailing(self):
         pos = Position(
-            order_id=2, symbol="NIFTY", exchange="NSE", side="BUY",
+            order_id=3, symbol="NIFTY", exchange="NSE", side="BUY",
             entry_price=23000.0, stop_loss=22800.0, target=23500.0,
             lot_size=1, trailing_sl_step_pct=0.5, opened_at_ist="17-02-2026 10:00:00 AM IST",
         )
@@ -110,6 +125,7 @@ class TestCapitalDefaults:
         assert result["success"] is True
         assert result["initial_capital"] > 0
         assert result["current_capital"] == result["initial_capital"]
+        assert result["pending_orders_count"] == 0
         assert result["open_positions_count"] == 0
         assert result["total_realized_pnl"] == 0.0
 
@@ -120,7 +136,7 @@ class TestCapitalDefaults:
 class TestPlaceOrder:
     @pytest.mark.asyncio
     async def test_place_order_buy_success(self, fresh_engine):
-        """BUY: entry < target, sl < entry."""
+        """BUY: entry < target, sl < entry. Starts as PENDING."""
         with patch(SPOT_PRICE_PATH, return_value=23000.0):
             result = await fresh_engine.place_order(
                 symbol="NIFTY", exchange="NSE",
@@ -130,6 +146,7 @@ class TestPlaceOrder:
         assert result["success"] is True
         assert result["side"] == "BUY"
         assert result["order_id"] == 1
+        assert result["status"] == "PENDING"
 
     @pytest.mark.asyncio
     async def test_place_order_sell_success(self, fresh_engine):
@@ -247,13 +264,79 @@ class TestPlaceOrder:
             )
         assert r2["order_id"] == r1["order_id"] + 1
 
+    @pytest.mark.asyncio
+    async def test_market_order_success(self, fresh_engine):
+        """MARKET order fills immediately at current price."""
+        with patch(SPOT_PRICE_PATH, return_value=25000.0):
+            result = await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                stop_loss=24500, target=26000,
+                lot_size=1,
+                order_type="MARKET",
+            )
+        assert result["success"] is True
+        assert result["order_type"] == "MARKET"
+        assert result["status"] == "OPEN"
+        assert result["entry_price"] == 25000.0
+        assert result["side"] == "BUY"
+        assert "filled_at" in result
+
+    @pytest.mark.asyncio
+    async def test_market_order_sell(self, fresh_engine):
+        """MARKET SELL: target < entry (fetched price)."""
+        with patch(SPOT_PRICE_PATH, return_value=25000.0):
+            result = await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                stop_loss=25300, target=24000,
+                lot_size=1,
+                order_type="MARKET",
+            )
+        assert result["success"] is True
+        assert result["side"] == "SELL"
+        assert result["status"] == "OPEN"
+
+    @pytest.mark.asyncio
+    async def test_market_order_price_fetch_failure(self, fresh_engine):
+        """MARKET order fails gracefully if current price cannot be fetched."""
+        with patch(SPOT_PRICE_PATH, side_effect=Exception("unavailable")):
+            with pytest.raises(ValidationError, match="failed to fetch"):
+                await fresh_engine.place_order(
+                    symbol="NIFTY", exchange="NSE",
+                    stop_loss=24500, target=26000,
+                    lot_size=1,
+                    order_type="MARKET",
+                )
+
+    @pytest.mark.asyncio
+    async def test_limit_order_requires_entry_price(self, fresh_engine):
+        """LIMIT order without entry_price should fail."""
+        with pytest.raises(ValidationError, match="entry_price is required"):
+            await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                stop_loss=22700, target=23600,
+                lot_size=1,
+                order_type="LIMIT",
+            )
+
+    @pytest.mark.asyncio
+    async def test_invalid_order_type(self, fresh_engine):
+        """Invalid order_type should fail."""
+        with pytest.raises(ValidationError, match="Invalid order_type"):
+            await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                entry_price=23000, stop_loss=22700, target=23600,
+                lot_size=1,
+                order_type="FOK",
+            )
+
 
 # ── Close Position tests ─────────────────────────────────────────
 
 
 class TestClosePosition:
     @pytest.mark.asyncio
-    async def test_close_position_success(self, fresh_engine):
+    async def test_cancel_pending_position(self, fresh_engine):
+        """Closing a PENDING position cancels it without PnL."""
         with patch(SPOT_PRICE_PATH, return_value=23000.0):
             order = await fresh_engine.place_order(
                 symbol="NIFTY", exchange="NSE",
@@ -262,17 +345,55 @@ class TestClosePosition:
             )
         result = await fresh_engine.close_position(order["order_id"])
         assert result["success"] is True
-        assert result["order_id"] == order["order_id"]
-        # Position is flagged for closure; actual close fires at next streamed price
+        assert result["source"] == "order_cancelled"
+        assert "never triggered" in result["message"].lower()
         async with fresh_engine._positions_lock:
-            pos = fresh_engine._positions.get(order["order_id"])
-        assert pos is not None and pos._pending_close is True
+            assert order["order_id"] not in fresh_engine._positions
+
+    @pytest.mark.asyncio
+    async def test_close_open_position(self, fresh_engine):
+        """Closing an OPEN position fetches price and records PnL."""
+        with patch(SPOT_PRICE_PATH, return_value=23000.0):
+            order = await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                entry_price=23000, stop_loss=22700, target=23600,
+                lot_size=1,
+            )
+        # Transition to OPEN
+        async with fresh_engine._positions_lock:
+            fresh_engine._positions[order["order_id"]].status = "OPEN"
+        with patch(SPOT_PRICE_PATH, return_value=23200.0):
+            result = await fresh_engine.close_position(order["order_id"])
+        assert result["success"] is True
+        assert result["exit_price"] == 23200.0
+        assert result["close_reason"] == "MANUAL_CLOSE"
+        assert result["pnl"] == 200.0
+        async with fresh_engine._positions_lock:
+            assert order["order_id"] not in fresh_engine._positions
 
     @pytest.mark.asyncio
     async def test_close_position_not_found(self, fresh_engine):
         result = await fresh_engine.close_position(order_id=999)
         assert result["success"] is False
         assert "found" in result["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_close_open_position_price_fetch_failure(self, fresh_engine):
+        """If get_current_spot_price fails for an OPEN position, it stays open."""
+        with patch(SPOT_PRICE_PATH, return_value=23000.0):
+            order = await fresh_engine.place_order(
+                symbol="NIFTY", exchange="NSE",
+                entry_price=23000, stop_loss=22700, target=23600,
+                lot_size=1,
+            )
+        async with fresh_engine._positions_lock:
+            fresh_engine._positions[order["order_id"]].status = "OPEN"
+        with patch(SPOT_PRICE_PATH, side_effect=Exception("network error")):
+            result = await fresh_engine.close_position(order["order_id"])
+        assert result["success"] is False
+        assert "failed" in result["message"].lower()
+        async with fresh_engine._positions_lock:
+            assert order["order_id"] in fresh_engine._positions
 
     @pytest.mark.asyncio
     async def test_close_position_records_to_db(self, fresh_engine):
@@ -304,11 +425,10 @@ class TestClosePosition:
         # Simulate screener closing at live price
         await fresh_engine._close_position_internal(order["order_id"], 150.0, "MANUAL_CLOSE")
 
-        # PnL = (150-100) * 10 = 500, invested = 100 * 10 = 1000
-        # Implementation: _capital += invested + pnl (capital not deducted on open)
-        invested = 100 * 10
+        # PnL = (150-100) * 10 = 500
+        # Capital is never deducted on open; only PnL is added on close.
         pnl = (150 - 100) * 10
-        assert fresh_engine._capital == initial + invested + pnl
+        assert fresh_engine._capital == initial + pnl
         assert fresh_engine._total_pnl == 500
 
 
@@ -317,15 +437,36 @@ class TestClosePosition:
 
 class TestViewPositions:
     @pytest.mark.asyncio
-    async def test_view_open_positions(self, fresh_engine):
+    async def test_view_pending_positions(self, fresh_engine):
+        """Newly placed order appears as PENDING."""
         with patch(SPOT_PRICE_PATH, return_value=100.0):
             await fresh_engine.place_order(
                 symbol="TEST", exchange="NSE",
                 entry_price=100, stop_loss=90, target=200,
                 lot_size=1,
             )
+        result = await fresh_engine.view_positions(filter_type="pending")
+        assert result["success"] is True
+        assert len(result["positions"]) == 1
+        assert result["positions"][0]["status"] == "PENDING"
+
+    @pytest.mark.asyncio
+    async def test_view_open_positions(self, fresh_engine):
+        """OPEN filter only returns positions that have been filled."""
+        with patch(SPOT_PRICE_PATH, return_value=100.0):
+            order = await fresh_engine.place_order(
+                symbol="TEST", exchange="NSE",
+                entry_price=100, stop_loss=90, target=200,
+                lot_size=1,
+            )
+        # Still PENDING — should NOT show under 'open'
         result = await fresh_engine.view_positions(filter_type="open")
         assert result["success"] is True
+        assert len(result["positions"]) == 0
+        # Transition to OPEN
+        async with fresh_engine._positions_lock:
+            fresh_engine._positions[order["order_id"]].status = "OPEN"
+        result = await fresh_engine.view_positions(filter_type="open")
         assert len(result["positions"]) == 1
         assert result["positions"][0]["status"] == "OPEN"
 
@@ -380,7 +521,7 @@ class TestViewPositions:
         await fresh_engine._close_position_internal(o1["order_id"], 150.0, "MANUAL_CLOSE")
         result = await fresh_engine.view_positions(filter_type="all")
         assert result["success"] is True
-        assert result["count"] == 2  # 1 open + 1 closed
+        assert result["count"] == 2  # 1 pending + 1 closed
 
 
 # ── Show Capital tests ───────────────────────────────────────────
@@ -388,7 +529,8 @@ class TestViewPositions:
 
 class TestShowCapital:
     @pytest.mark.asyncio
-    async def test_show_capital_after_order(self, fresh_engine):
+    async def test_show_capital_after_pending_order(self, fresh_engine):
+        """Pending orders reserve capital but are not 'invested'."""
         with patch(SPOT_PRICE_PATH, return_value=100.0):
             await fresh_engine.place_order(
                 symbol="TEST", exchange="NSE",
@@ -396,8 +538,10 @@ class TestShowCapital:
                 lot_size=5,
             )
         result = await fresh_engine.show_capital()
-        assert result["invested_in_open_positions"] == 500.0
-        assert result["open_positions_count"] == 1
+        assert result["reserved_for_pending_orders"] == 500.0
+        assert result["invested_in_open_positions"] == 0.0
+        assert result["pending_orders_count"] == 1
+        assert result["open_positions_count"] == 0
 
     @pytest.mark.asyncio
     async def test_show_capital_pnl_percentage(self, fresh_engine):
