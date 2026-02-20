@@ -24,7 +24,7 @@ def fetch_minds(
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
     scraper = Minds(export_result=False)
-    result = scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
+    result = scraper.get_data(exchange=exchange, symbol=symbol, limit=limit)
 
     if result.get("status") == "success":
         data = result.get("data", [])

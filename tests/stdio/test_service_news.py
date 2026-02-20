@@ -21,9 +21,9 @@ class TestNewsIntegration:
             assert "storyPath" not in headlines[0]
 
     def test_fetch_real_content(self):
-        headlines = fetch_news_headlines(symbol="BTC", exchange="CRYPTO")
+        headlines = fetch_news_headlines(symbol="BTCUSD", exchange="BITSTAMP")
         if not headlines:
-            pytest.skip("No headlines found for BTC")
+            pytest.skip("No headlines found for BTCUSD")
         
         sid = headlines[0]["id"]
         content = fetch_news_content([sid])

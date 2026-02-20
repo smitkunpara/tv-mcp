@@ -32,7 +32,7 @@ def fetch_ideas(
             cookie=cookie or settings.TRADINGVIEW_COOKIE,
         )
 
-        result = scraper.scrape(
+        result = scraper.get_data(
             symbol=symbol,
             exchange=exchange,
             start_page=int(startPage),

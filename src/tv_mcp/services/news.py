@@ -38,7 +38,7 @@ def fetch_news_headlines(
         cookie=cookie or settings.TRADINGVIEW_COOKIE,
     )
 
-    result = scraper.scrape_headlines(
+    result = scraper.get_headlines(
         symbol=symbol,
         exchange=validated_exchange,
         provider=provider_param,
@@ -88,14 +88,14 @@ def fetch_news_content(
     news_content: List[Dict[str, Any]] = []
 
     for sid in story_ids:
-        result = scraper.scrape_content(story_id=sid)
+        result = scraper.get_content(story_id=sid)
         
         if result.get("status") == "success":
             data = result.get("data", {})
             news_content.append({
                 "success": True,
                 "title": data.get("title", ""),
-                "content": data.get("description", ""),
+                "body": data.get("description", ""),
             })
         else:
             news_content.append({

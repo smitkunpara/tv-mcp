@@ -18,7 +18,7 @@ def fetch_all_indicators(
 
     scraper = Technicals(export_result=False)
     try:
-        result = scraper.scrape(
+        result = scraper.get_data(
             symbol=symbol,
             exchange=exchange,
             timeframe=timeframe,

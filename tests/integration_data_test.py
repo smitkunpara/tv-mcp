@@ -77,9 +77,9 @@ def test_real_news_headlines():
 def test_real_news_content():
     """Test fetching full news content for a real story ID."""
     # First get a real headline to get a valid story ID
-    headlines = fetch_news_headlines(symbol="BTC", exchange="CRYPTO")
+    headlines = fetch_news_headlines(symbol="BTCUSD", exchange="BITSTAMP")
     if not headlines:
-        pytest.skip("No headlines found for BTC to test content")
+        pytest.skip("No headlines found for BTCUSD to test content")
     
     story_id = headlines[0]["id"]
     content = fetch_news_content([story_id])

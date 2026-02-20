@@ -107,7 +107,7 @@ def validate_nse_expiry_date(symbol: str, expiry_date: str) -> Dict[str, Any]:
 
 def get_current_spot_price(symbol: str, exchange: str) -> float:
     scraper = Overview(export_result=False)
-    result = scraper.get_overview(exchange=exchange, symbol=symbol, fields=["close"])
+    result = scraper.get_data(exchange=exchange, symbol=symbol, fields=["close"])
     if result.get("status") == "success":
         price = (result.get("data") or {}).get("close")
         if price is not None:

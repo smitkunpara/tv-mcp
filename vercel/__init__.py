@@ -13,6 +13,6 @@ Sub-packages:
     app       – FastAPI application factory
 """
 
-# Don't import app at module level to avoid circular import issues
-# Import directly from vercel.app when needed
-__all__: list[str] = []
+from .app import app, create_app
+
+__all__ = ["app", "create_app"]
