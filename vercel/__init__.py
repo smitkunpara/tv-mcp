@@ -11,8 +11,11 @@ Sub-packages:
     auth      – API key header verification dependencies
     schemas   – Pydantic request models
     app       – FastAPI application factory
-"""
 
-from .app import app, create_app
+Do not import .app here to avoid circular import when Vercel loads vercel.app:
+app.py imports .routers, which loads this package; importing .app here would
+request app before app.py has finished defining app.
+Use: from vercel.app import app, create_app
+"""
 
 __all__ = ["app", "create_app"]

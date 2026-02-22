@@ -27,14 +27,16 @@ class TestVercelEntrypoints:
     """Verify HTTP API entrypoints."""
 
     def test_vercel_app_importable(self):
+        """Vercel entrypoint is vercel.app; it must export app and create_app."""
         mod = importlib.import_module("vercel.app")
         assert hasattr(mod, "app"), "FastAPI app instance must be exported"
         assert hasattr(mod, "create_app"), "create_app factory must be exported"
 
-    def test_vercel_init_exports(self):
+    def test_vercel_package_importable_without_circular_import(self):
+        """Importing the vercel package must not trigger circular import (no app re-export)."""
         mod = importlib.import_module("vercel")
-        assert hasattr(mod, "app"), "app must be re-exported from __init__"
-        assert hasattr(mod, "create_app"), "create_app must be re-exported from __init__"
+        assert mod.__name__ == "vercel"
+        # app/create_app are not re-exported from vercel to avoid circular import; use vercel.app
 
 
 class TestServiceImports:

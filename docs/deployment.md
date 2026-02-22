@@ -15,7 +15,7 @@ Set these in your Vercel project settings:
 | `TRADINGVIEW_COOKIE` | TradingView session cookie |
 | `TV_ADMIN_KEY` | Admin API key (keep secret) |
 | `TV_CLIENT_KEY` | Client API key |
-| `VERCEL_URL` | Your deployment URL (e.g. `https://your-app.vercel.app/`) |
+| `PUBLIC_APP_URL` | *(recommended)* Your stable alias (e.g. `https://tradingview-mcp.vercel.app`) so `/openapi.json` and docs use this URL instead of the deployment URL |
 
 ### Deploying
 
@@ -24,6 +24,8 @@ vercel --prod
 ```
 
 The `vercel.json` at the project root configures the build.
+
+**Why two URLs?** Each deployment gets a unique URL (e.g. `tradingview-j9bewp6k6-….vercel.app`). Your project alias (e.g. `tradingview-mcp.vercel.app`) always points at the latest production deployment. Set `PUBLIC_APP_URL` to the alias so `/openapi.json` and API docs show the stable URL.
 
 ---
 

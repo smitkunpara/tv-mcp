@@ -54,4 +54,5 @@ You can also use the [Chrome extension](../cookie_updater_extension/README.md) t
 
 | Variable | Default | Description |
 |---|---|---|
-| `VERCEL_URL` | *(empty)* | Public deployment URL, used by Vercel to set `servers[0].url` in OpenAPI spec |
+| `PUBLIC_APP_URL` | `https://tradingview-mcp.vercel.app` | Base URL used in the OpenAPI spec (`/openapi.json`) and root endpoint. Set this in Vercel to your **stable alias** (e.g. `https://tradingview-mcp.vercel.app`) so docs and clients use one URL instead of the deployment URL. |
+| `VERCEL_URL` | *(set by Vercel)* | Deployment hostname (no scheme). Used as fallback when `PUBLIC_APP_URL` is not set. |

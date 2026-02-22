@@ -4,10 +4,9 @@ Public routes — no authentication required.
 Includes health check, root info, and privacy policy endpoints.
 """
 
-import os
-
 from fastapi import APIRouter
 
+from ..config import get_public_url
 from ..schemas import HealthResponse
 
 router = APIRouter()
@@ -51,7 +50,7 @@ async def root() -> dict:
         "message": "TradingView HTTP API Server",
         "version": "1.0.0",
         "servers": [
-            {"url": os.getenv("VERCEL_URL", "https://tradingview-mcp.vercel.app/")}
+            {"url": get_public_url()}
         ],
         "endpoints": [
             "/historical-data",
