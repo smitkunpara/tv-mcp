@@ -5,12 +5,22 @@ Creates the ``app`` singleton used by the ASGI entrypoint.
 """
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_public_url
 from .routers import public, client, admin
 # Comment the next line to disable paper trading endpoints
 from .routers import paper_trading
+
+
+def _generate_operation_id(route: APIRoute) -> str:
+    """Create short, deterministic operation IDs for OpenAPI consumers."""
+    method = sorted(route.methods)[0].lower() if route.methods else "op"
+    path = route.path_format.strip("/").replace("/", "_").replace("-", "_")
+    if not path:
+        path = "root"
+    return f"{method}_{path}"
 
 
 def create_app() -> FastAPI:
@@ -21,6 +31,7 @@ def create_app() -> FastAPI:
         description="REST API for TradingView data scraping tools",
         version="1.0.0",
         servers=[{"url": base_url}],
+        generate_unique_id_function=_generate_operation_id,
     )
     application.add_middleware(
         CORSMiddleware,

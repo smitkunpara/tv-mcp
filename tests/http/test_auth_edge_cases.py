@@ -13,7 +13,7 @@ from src.tv_mcp.core.settings import settings
 _CLIENT_KEY = settings.CLIENT_API_KEY
 _ADMIN_KEY = settings.ADMIN_API_KEY
 
-CLIENT_ENDPOINTS = [
+CLIENT_POST_ENDPOINTS = [
     "/historical-data",
     "/news-headlines",
     "/news-content",
@@ -21,10 +21,23 @@ CLIENT_ENDPOINTS = [
     "/ideas",
     "/minds",
     "/option-chain-greeks",
+    "/nse-option-chain-oi",
+    "/paper-trading/place-order",
+    "/paper-trading/close-position",
+    "/paper-trading/view-positions",
+    "/paper-trading/set-alert",
+    "/paper-trading/remove-alert",
+]
+
+CLIENT_GET_ENDPOINTS = [
+    "/paper-trading/show-capital",
+    "/paper-trading/alert-manager",
+    "/paper-trading/view-alerts",
 ]
 
 PUBLIC_ENDPOINTS = [
     "/health",
+    "/openapi.json",
     "/privacy-policy",
     "/",
 ]
@@ -33,11 +46,19 @@ PUBLIC_ENDPOINTS = [
 class TestMissingClientKey:
     """Missing X-Client-Key header must return 403 with correct detail."""
 
-    @pytest.mark.parametrize("endpoint", CLIENT_ENDPOINTS)
-    def test_missing_header_returns_403(
+    @pytest.mark.parametrize("endpoint", CLIENT_POST_ENDPOINTS)
+    def test_missing_header_returns_403_for_post(
         self, client: TestClient, endpoint: str
     ) -> None:
         resp = client.post(endpoint, json={})
+        assert resp.status_code == 403
+        assert "Unauthorized" in resp.json()["detail"]
+
+    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
+    def test_missing_header_returns_403_for_get(
+        self, client: TestClient, endpoint: str
+    ) -> None:
+        resp = client.get(endpoint)
         assert resp.status_code == 403
         assert "Unauthorized" in resp.json()["detail"]
 
@@ -54,13 +75,26 @@ class TestMissingAdminKey:
 class TestBothKeysWrong:
     """Both headers present but with wrong values must still be 403."""
 
-    @pytest.mark.parametrize("endpoint", CLIENT_ENDPOINTS)
-    def test_wrong_client_key_still_403(
+    @pytest.mark.parametrize("endpoint", CLIENT_POST_ENDPOINTS)
+    def test_wrong_client_key_still_403_for_post(
         self, client: TestClient, endpoint: str
     ) -> None:
         resp = client.post(
             endpoint,
             json={},
+            headers={
+                "X-Client-Key": "wrong-client-key-xxx",
+                "X-Admin-Key": "wrong-admin-key-yyy",
+            },
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
+    def test_wrong_client_key_still_403_for_get(
+        self, client: TestClient, endpoint: str
+    ) -> None:
+        resp = client.get(
+            endpoint,
             headers={
                 "X-Client-Key": "wrong-client-key-xxx",
                 "X-Admin-Key": "wrong-admin-key-yyy",
@@ -94,14 +128,25 @@ class TestCrossKeyConfusion:
         )
         assert resp.status_code == 403
 
-    @pytest.mark.parametrize("endpoint", CLIENT_ENDPOINTS)
-    def test_admin_key_on_client_endpoint_returns_403(
+    @pytest.mark.parametrize("endpoint", CLIENT_POST_ENDPOINTS)
+    def test_admin_key_on_client_post_endpoint_returns_403(
         self, client: TestClient, endpoint: str
     ) -> None:
         """Using admin key on client endpoints should fail."""
         resp = client.post(
             endpoint,
             json={},
+            headers={"X-Client-Key": _ADMIN_KEY},
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
+    def test_admin_key_on_client_get_endpoint_returns_403(
+        self, client: TestClient, endpoint: str
+    ) -> None:
+        """Using admin key on client endpoints should fail."""
+        resp = client.get(
+            endpoint,
             headers={"X-Client-Key": _ADMIN_KEY},
         )
         assert resp.status_code == 403
