@@ -109,7 +109,7 @@ class TestValidationError400:
 class TestUnexpectedException500:
     """Service raising generic Exception must yield HTTP 500."""
 
-    @pytest.mark.parametrize("endpoint", list(PAYLOADS.keys()))
+    @pytest.mark.parametrize("endpoint", [ep for ep in PAYLOADS.keys() if ep != "/news-headlines"])
     def test_unexpected_exception_returns_500(
         self,
         client: TestClient,

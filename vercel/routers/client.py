@@ -49,11 +49,13 @@ async def get_historical_data_endpoint(request: HistoricalDataRequest) -> dict:
             exchange=request.exchange,
             symbol=request.symbol,
             timeframe=request.timeframe,
-            numb_price_candles=int(request.numb_price_candles),
+            numb_price_candles=request.numb_price_candles,
             indicators=request.indicators,
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message") or result.get("errors"))
+            err = result.get("message") or result.get("errors")
+            detail_str = "; ".join(err) if isinstance(err, list) else str(err)
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
@@ -91,7 +93,8 @@ async def get_news_headlines_endpoint(request: NewsHeadlinesRequest) -> dict:
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {str(e)}")
+        # Return 400 for scraper failures (usually invalid symbol/exchange)
+        raise HTTPException(status_code=400, detail=f"Failed to fetch news: {str(e)}")
 
 
 # ── POST /news-content ─────────────────────────────────────────────
@@ -107,7 +110,8 @@ async def get_news_content_endpoint(request: NewsContentRequest) -> dict:
         articles = fetch_news_content(request.story_ids)
         # Check if all articles failed
         if articles and all(not a.get("success", True) for a in articles):
-            raise HTTPException(status_code=400, detail=articles[0].get("error", "Failed to fetch news content"))
+            detail_str = str(articles[0].get("error", "Failed to fetch news content"))
+            raise HTTPException(status_code=400, detail=detail_str)
             
         return {"data": toon_encode({"articles": articles})}
 
@@ -135,7 +139,8 @@ async def get_all_indicators_endpoint(request: AllIndicatorsRequest) -> dict:
             timeframe=request.timeframe
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message"))
+            detail_str = str(result.get("message") or "Unexpected failure")
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
@@ -155,14 +160,15 @@ async def get_ideas_endpoint(request: IdeasRequest) -> dict:
         result = fetch_ideas(
             symbol=request.symbol,
             exchange=request.exchange,
-            startPage=int(request.startPage),
-            endPage=int(request.endPage),
+            startPage=request.startPage,
+            endPage=request.endPage,
             sort=request.sort,
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message"))
+            detail_str = str(result.get("message") or "Unexpected failure")
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
@@ -182,12 +188,13 @@ async def get_minds_endpoint(request: MindsRequest) -> dict:
         result = fetch_minds(
             symbol=request.symbol,
             exchange=request.exchange,
-            limit=int(request.limit),
+            limit=request.limit,
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message"))
+            detail_str = str(result.get("message") or "Unexpected failure")
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
@@ -215,11 +222,12 @@ async def get_option_chain_greeks_endpoint(request: OptionChainGreeksRequest) ->
             symbol=request.symbol,
             exchange=request.exchange,
             expiry_date=expiry_date,
-            no_of_ITM=int(request.no_of_ITM),
-            no_of_OTM=int(request.no_of_OTM),
+            no_of_ITM=request.no_of_ITM,
+            no_of_OTM=request.no_of_OTM,
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message"))
+            detail_str = str(result.get("message") or "Unexpected failure")
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
@@ -245,7 +253,8 @@ async def get_nse_option_chain_oi_endpoint(request: NseOptionChainOiRequest) -> 
             expiry_date=request.expiry_date,
         )
         if isinstance(result, dict) and not result.get("success", True):
-            raise HTTPException(status_code=400, detail=result.get("message"))
+            detail_str = str(result.get("message") or "Unexpected failure")
+            raise HTTPException(status_code=400, detail=detail_str)
         return {"data": toon_encode(result)}
 
     except ValidationError as e:

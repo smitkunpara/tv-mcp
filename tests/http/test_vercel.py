@@ -271,7 +271,7 @@ class TestNewsHeadlinesEndpoint:
         assert resp.json()["data"] == "headlines[0]:"
 
     @patch("vercel.routers.client.fetch_news_headlines")
-    def test_exception_returns_500(
+    def test_exception_returns_400(
         self,
         mock_fetch: MagicMock,
         client: TestClient,
@@ -283,7 +283,7 @@ class TestNewsHeadlinesEndpoint:
             json={"symbol": "BTC", "exchange": "BINANCE"},
             headers=client_headers,
         )
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
 
 class TestNewsContentEndpoint:
@@ -507,9 +507,7 @@ class TestUpdateCookiesEndpoint:
             json={"cookies": [], "source": "ext"},
             headers=admin_headers,
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is False
+        assert resp.status_code == 400
 
     @patch("vercel.routers.admin.fetch_ideas")
     def test_verification_failure(
@@ -524,9 +522,7 @@ class TestUpdateCookiesEndpoint:
             json={"cookies": [{"name": "x", "value": "y"}], "source": "ext"},
             headers=admin_headers,
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is False
+        assert resp.status_code == 400
 
 
 # ── Validation error through ValidationError ────────────────────────

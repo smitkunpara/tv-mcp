@@ -33,7 +33,7 @@ class HistoricalDataRequest(BaseModel):
         ...,
         description="Time interval for each candle. REQUIRED.",
     )
-    numb_price_candles: Union[int, str] = Field(
+    numb_price_candles: int = Field(
         ...,
         description="Number of historical candles to fetch (1-5000). REQUIRED.",
     )
@@ -99,8 +99,8 @@ class IdeasRequest(BaseModel):
         max_length=30,
         description="Stock exchange name. REQUIRED.",
     )
-    startPage: Union[int, str] = Field(1, description="Starting page number (1-10).")
-    endPage: Union[int, str] = Field(1, description="Ending page number (1-10).")
+    startPage: int = Field(1, description="Starting page number (1-10).")
+    endPage: int = Field(1, description="Ending page number (1-10).")
     sort: Literal["popular", "recent"] = Field("popular", description="Sorting order for ideas.")
     start_datetime: Optional[str] = Field(
         None, description="Filter ideas from this datetime onwards. IST format: DD-MM-YYYY HH:MM"
@@ -118,7 +118,7 @@ class MindsRequest(BaseModel):
         max_length=30,
         description="Stock exchange name. REQUIRED.",
     )
-    limit: Union[int, str] = Field(
+    limit: int = Field(
         1, description="Maximum number of discussions to retrieve. Default is 1 for safety."
     )
     start_datetime: Optional[str] = Field(
@@ -143,8 +143,8 @@ class OptionChainGreeksRequest(BaseModel):
             "Option expiry date: 'nearest' (default), 'all', or int YYYYMMDD (e.g., 20251202)."
         ),
     )
-    no_of_ITM: Union[int, str] = Field(5, description="Number of In-The-Money strikes (1-20).")
-    no_of_OTM: Union[int, str] = Field(5, description="Number of Out-of-The-Money strikes (1-20).")
+    no_of_ITM: int = Field(5, description="Number of In-The-Money strikes (1-20).")
+    no_of_OTM: int = Field(5, description="Number of Out-of-The-Money strikes (1-20).")
 
 
 class NseOptionChainOiRequest(BaseModel):
