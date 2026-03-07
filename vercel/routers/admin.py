@@ -5,8 +5,7 @@ Uses ``verify_admin`` for auth and verifies cookies by calling
 ``fetch_ideas`` before committing the update.
 """
 
-from fastapi import APIRouter, Depends
-
+from fastapi import APIRouter, Depends, HTTPException
 from src.tv_mcp.services.ideas import fetch_ideas
 from src.tv_mcp.core.settings import settings
 
@@ -25,7 +24,7 @@ async def update_cookies(request: dict) -> dict:
         source = request.get("source", "unknown")
 
         if not raw_cookies:
-            return {"success": False, "message": "No cookies provided in payload"}
+            raise HTTPException(status_code=400, detail="No cookies provided in payload")
 
         print(f"📥 Received {len(raw_cookies)} cookies from {source}")
 
@@ -44,7 +43,7 @@ async def update_cookies(request: dict) -> dict:
             test_result = fetch_ideas(symbol="BTCUSD", exchange="BITSTAMP", startPage=1, endPage=1, cookie=new_cookie_string)
 
             if isinstance(test_result, dict) and test_result.get("success") is False:
-                raise ValueError("Validation request returned failure.")
+                raise ValueError(test_result.get("message", "Validation request returned failure."))
 
             print("✅ Cookie Verification Successful!")
             settings.update_cookie(new_cookie_string)
@@ -56,10 +55,9 @@ async def update_cookies(request: dict) -> dict:
 
         except Exception as e:
             print(f"❌ Verification Failed: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Cookie validation failed: {str(e)}. Reverted to previous session.",
-            }
+            raise HTTPException(status_code=400, detail=f"Cookie validation failed: {str(e)}")
 
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"success": False, "message": f"Server error processing cookies: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Server error processing cookies: {str(e)}")

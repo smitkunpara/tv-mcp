@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
     application.include_router(client.router)
     application.include_router(admin.router)
     # Comment the next line to disable paper trading endpoints
-    application.include_router(paper_trading.router)
+    # application.include_router(paper_trading.router)
     return application
 
 

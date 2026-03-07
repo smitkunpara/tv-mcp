@@ -52,10 +52,14 @@ async def get_historical_data_endpoint(request: HistoricalDataRequest) -> dict:
             numb_price_candles=int(request.numb_price_candles),
             indicators=request.indicators,
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message") or result.get("errors"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -101,10 +105,16 @@ async def get_news_headlines_endpoint(request: NewsHeadlinesRequest) -> dict:
 async def get_news_content_endpoint(request: NewsContentRequest) -> dict:
     try:
         articles = fetch_news_content(request.story_ids)
+        # Check if all articles failed
+        if articles and all(not a.get("success", True) for a in articles):
+            raise HTTPException(status_code=400, detail=articles[0].get("error", "Failed to fetch news content"))
+            
         return {"data": toon_encode({"articles": articles})}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch news content: {str(e)}")
 
@@ -124,10 +134,14 @@ async def get_all_indicators_endpoint(request: AllIndicatorsRequest) -> dict:
             symbol=request.symbol, 
             timeframe=request.timeframe
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -147,10 +161,14 @@ async def get_ideas_endpoint(request: IdeasRequest) -> dict:
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -168,10 +186,14 @@ async def get_minds_endpoint(request: MindsRequest) -> dict:
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -196,10 +218,14 @@ async def get_option_chain_greeks_endpoint(request: OptionChainGreeksRequest) ->
             no_of_ITM=int(request.no_of_ITM),
             no_of_OTM=int(request.no_of_OTM),
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -218,9 +244,13 @@ async def get_nse_option_chain_oi_endpoint(request: NseOptionChainOiRequest) -> 
             symbol=request.symbol,
             expiry_date=request.expiry_date,
         )
+        if isinstance(result, dict) and not result.get("success", True):
+            raise HTTPException(status_code=400, detail=result.get("message"))
         return {"data": toon_encode(result)}
 
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
