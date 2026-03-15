@@ -54,8 +54,18 @@ VALID_NSE_INDICES = ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY
 
 
 def validate_exchange(exchange: str) -> str:
-    validator.validate_exchange(exchange)
-    return exchange.upper()
+    try:
+        validator.validate_exchange(exchange)
+        return exchange.upper()
+    except ValidationError:
+        # Sort and join for consistent, readable error message
+        exchanges = sorted(VALID_EXCHANGES)
+        raise ValidationError(
+            f"Invalid exchange: '{exchange}'. "
+            f"Please provide a valid exchange from the following list: {', '.join(exchanges)}"
+        )
+    except Exception as e:
+        raise ValidationError(f"Exchange validation failed for '{exchange}': {str(e)}")
 
 
 def validate_symbol(symbol: str) -> str:
@@ -66,8 +76,17 @@ def validate_symbol(symbol: str) -> str:
 
 
 def validate_timeframe(timeframe: str) -> str:
-    validator.validate_timeframe(timeframe)
-    return timeframe
+    try:
+        validator.validate_timeframe(timeframe)
+        return timeframe
+    except ValidationError:
+        timeframes = sorted(VALID_TIMEFRAMES)
+        raise ValidationError(
+            f"Invalid timeframe: '{timeframe}'. "
+            f"Valid options are: {', '.join(timeframes)}"
+        )
+    except Exception as e:
+        raise ValidationError(f"Timeframe validation failed for '{timeframe}': {str(e)}")
 
 
 def validate_news_provider(provider: Optional[str]) -> Optional[str]:
@@ -113,6 +132,10 @@ def validate_indicators(indicators: List[str]) -> Tuple[List[str], List[str], Li
             indicator_ids.append(ind_id)
             indicator_versions.append(ind_version)
         else:
-            errors.append(f"Indicator '{indicator}' not recognized.")
+            valid_list = ", ".join(sorted(INDICATOR_MAPPING.keys()))
+            errors.append(
+                f"Indicator '{indicator}' not recognized. "
+                f"Valid options are: {valid_list}"
+            )
 
     return indicator_ids, indicator_versions, errors, warnings

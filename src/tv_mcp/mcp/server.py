@@ -57,6 +57,11 @@ from .tools.news import get_news_content, get_news_headlines
 from .tools.options import get_option_chain_greeks, get_nse_option_chain_oi
 from .tools.social import get_ideas, get_minds
 from .tools.technicals import get_all_indicators
+from .tools.meta import (
+    list_available_exchanges,
+    list_supported_indicators,
+    list_available_timeframes,
+)
 from .tools.paper_trading import (
     place_order,
     close_position,
@@ -80,6 +85,11 @@ mcp.tool()(get_ideas)
 mcp.tool()(get_minds)
 mcp.tool()(get_option_chain_greeks)
 mcp.tool()(get_nse_option_chain_oi)
+
+# ── Metadata tools ───────────────────────────────────────────────
+mcp.tool()(list_available_exchanges)
+mcp.tool()(list_supported_indicators)
+mcp.tool()(list_available_timeframes)
 
 # ── Paper Trading tools ──────────────────────────────────────────
 # mcp.tool()(place_order)

@@ -8,6 +8,11 @@ from fastapi import APIRouter
 
 from ..config import get_public_url
 from ..schemas import HealthResponse
+from src.tv_mcp.core.validators import (
+    VALID_EXCHANGES,
+    VALID_TIMEFRAMES,
+    INDICATOR_MAPPING,
+)
 
 router = APIRouter()
 
@@ -16,6 +21,24 @@ router = APIRouter()
 async def health_check() -> dict:
     """Health check endpoint — no authentication required."""
     return {"status": "healthy", "service": "TradingView HTTP API"}
+
+
+@router.get("/exchanges")
+async def get_exchanges() -> dict:
+    """Get list of all supported TradingView exchanges."""
+    return {"exchanges": sorted(VALID_EXCHANGES)}
+
+
+@router.get("/indicators")
+async def get_indicators() -> dict:
+    """Get list of supported technical indicators for historical data."""
+    return {"indicators": sorted(INDICATOR_MAPPING.keys())}
+
+
+@router.get("/timeframes")
+async def get_timeframes() -> dict:
+    """Get list of supported timeframes."""
+    return {"timeframes": sorted(VALID_TIMEFRAMES)}
 
 
 @router.get("/privacy-policy", include_in_schema=False)
@@ -60,6 +83,9 @@ async def root() -> dict:
             "/ideas",
             "/option-chain-greeks",
             "/nse-option-chain-oi",
+            "/exchanges",
+            "/indicators",
+            "/timeframes",
             "/paper-trading/place-order",
             "/paper-trading/close-position",
             "/paper-trading/view-positions",

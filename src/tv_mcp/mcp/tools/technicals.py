@@ -28,7 +28,8 @@ async def get_all_indicators(
         str,
         Field(
             description=(
-                "Stock exchange name (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED."
+                "Stock exchange name (e.g., 'NASDAQ', 'BINANCE', 'NSE'). REQUIRED. "
+                "Use 'list_available_exchanges' to see all options."
             ),
         ),
     ],

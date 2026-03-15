@@ -54,7 +54,8 @@ async def get_historical_data(
         Field(
             description=(
                 f"List of technical indicators to overlay. "
-                f"Options: {', '.join(INDICATOR_MAPPING.keys())}."
+                f"Options: {', '.join(INDICATOR_MAPPING.keys())}. "
+                "Use 'list_supported_indicators' tool to see the full list."
             ),
         ),
     ] = [],  # noqa: B006
