@@ -92,14 +92,14 @@ mcp.tool()(list_supported_indicators)
 mcp.tool()(list_available_timeframes)
 
 # ── Paper Trading tools ──────────────────────────────────────────
-# mcp.tool()(place_order)
-# mcp.tool()(close_position)
-# mcp.tool()(view_positions)
-# mcp.tool()(show_capital)
-# mcp.tool()(set_alert)
-# mcp.tool()(alert_manager)
-# mcp.tool()(view_available_alerts)
-# mcp.tool()(remove_alert)
+mcp.tool()(place_order)
+mcp.tool()(close_position)
+mcp.tool()(view_positions)
+mcp.tool()(show_capital)
+mcp.tool()(set_alert)
+mcp.tool()(alert_manager)
+mcp.tool()(view_available_alerts)
+mcp.tool()(remove_alert)
 
 
 def main() -> None:

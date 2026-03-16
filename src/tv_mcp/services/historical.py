@@ -82,17 +82,23 @@ def fetch_historical_data(
         with ThreadPoolExecutor(max_workers=len(batches)) as executor:
             futures = {executor.submit(fetch_batch, i, b): i for i, b in enumerate(batches)}
             results = {}
+            first_error = None
             for future in as_completed(futures):
                 idx = futures[future]
                 res = future.result()
                 if res.get("status") == "success":
                     results[idx] = res.get("data", {})
+                elif not first_error:
+                    first_error = res.get("error", "Streamer failure")
 
         for idx in sorted(results.keys()):
             data = results[idx]
             if not combined_response["ohlcv"]:
                 combined_response["ohlcv"] = data.get("ohlcv", [])
             combined_response["indicators"].update(data.get("indicators", {}))
+
+        if not combined_response["ohlcv"] and first_error:
+            return {"success": False, "errors": [first_error], "message": first_error}
 
         merged_data = merge_ohlc_with_indicators({
             "ohlc": combined_response["ohlcv"],

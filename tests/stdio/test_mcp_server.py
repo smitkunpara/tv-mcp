@@ -39,6 +39,9 @@ EXPECTED_TOOLS = [
     "alert_manager",
     "view_available_alerts",
     "remove_alert",
+    "list_available_exchanges",
+    "list_supported_indicators",
+    "list_available_timeframes",
 ]
 
 class TestToolRegistration:
@@ -47,8 +50,8 @@ class TestToolRegistration:
         for name in EXPECTED_TOOLS:
             assert name in registered, f"Tool '{name}' not registered"
 
-    def test_exactly_sixteen_tools(self) -> None:
-        assert len(mcp._tool_manager._tools) == 16
+    def test_exactly_nineteen_tools(self) -> None:
+        assert len(mcp._tool_manager._tools) == 19
 
 # ── Tool handler integration (REAL DATA) ─────────────────────────
 
