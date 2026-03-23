@@ -9,8 +9,27 @@ import os
 import sys
 import logging
 from pathlib import Path
-
 from fastmcp import FastMCP
+from .tools.historical import get_historical_data
+from .tools.news import get_news_content, get_news_headlines
+from .tools.options import get_option_chain_greeks, get_nse_option_chain_oi
+from .tools.social import get_ideas, get_minds
+from .tools.technicals import get_all_indicators
+from .tools.meta import (
+    list_available_exchanges,
+    list_supported_indicators,
+    list_available_timeframes,
+)
+from .tools.paper_trading import (
+    place_order,
+    close_position,
+    view_positions,
+    show_capital,
+    set_alert,
+    alert_manager,
+    view_available_alerts,
+    remove_alert,
+)
 
 # ── Logging Setup ────────────────────────────────────────────────
 def _setup_logging():
@@ -51,27 +70,6 @@ def _setup_logging():
 
 _setup_logging()
 logger = logging.getLogger(__name__)
-
-from .tools.historical import get_historical_data
-from .tools.news import get_news_content, get_news_headlines
-from .tools.options import get_option_chain_greeks, get_nse_option_chain_oi
-from .tools.social import get_ideas, get_minds
-from .tools.technicals import get_all_indicators
-from .tools.meta import (
-    list_available_exchanges,
-    list_supported_indicators,
-    list_available_timeframes,
-)
-from .tools.paper_trading import (
-    place_order,
-    close_position,
-    view_positions,
-    show_capital,
-    set_alert,
-    alert_manager,
-    view_available_alerts,
-    remove_alert,
-)
 
 # ── FastMCP instance ─────────────────────────────────────────────
 mcp = FastMCP("TradingView-MCP")
