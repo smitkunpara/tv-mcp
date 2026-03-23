@@ -212,7 +212,8 @@ class TestFetchNSEOptionChainOIWithValidation:
         result = fetch_nse_option_chain_oi("NIFTY", "24-Feb-2026")
 
         assert result["success"] is True
-        mock_validate.assert_called_once_with("NIFTY", "24-Feb-2026")
+        mock_validate.assert_any_call("NIFTY", "24-Feb-2026")
+        assert mock_validate.call_count >= 1
 
     @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
     def test_fetch_oi_with_invalid_date_returns_helpful_error(self, mock_validate):

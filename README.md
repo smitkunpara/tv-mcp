@@ -12,9 +12,9 @@ Supports the **MCP protocol** (stdio) for AI assistants and a **REST API** for d
 ## Roadmap
 
 - [x] Migrate to `tv_scraper` V1.0.0 (Modular architecture).
-- [x] Integrate NSE Option Chain OI & PCR data (NIFTY, BANKNIFTY, etc.).
+- [x] Integrate unified NSE/BSE Option Chain OI & PCR data.
 - [x] Implement paper trading mode (AI-driven simulated trading with full P&L tracking).
-- [ ] Implement BSE OI scraping (pending).
+- [x] Implement BSE OI scraping (SENSEX, BANKEX, SX50).
 
 ---
 
@@ -64,7 +64,7 @@ uv run python vercel/app.py   # listens on http://localhost:4589
 | Market Data | `get_historical_data`, `get_all_indicators` |
 | News | `get_news_headlines`, `get_news_content` |
 | Community | `get_ideas`, `get_minds` |
-| Options | `get_option_chain_greeks`, `get_nse_option_chain_oi` |
+| Options | `get_option_chain_greeks` (TradingView-wide), `get_option_chain_oi` (NSE/BSE OI) |
 | Paper Trading | `place_order`, `close_position`, `view_positions`, `show_capital`, `set_alert`, `alert_manager`, `view_available_alerts`, `remove_alert` |
 
 ---

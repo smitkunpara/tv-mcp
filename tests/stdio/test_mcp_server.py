@@ -30,7 +30,7 @@ EXPECTED_TOOLS = [
     "get_ideas",
     "get_minds",
     "get_option_chain_greeks",
-    "get_nse_option_chain_oi",
+    "get_option_chain_oi",
     "place_order",
     "close_position",
     "view_positions",

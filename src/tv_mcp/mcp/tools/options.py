@@ -7,38 +7,60 @@ from typing import Annotated, Optional, Union
 from pydantic import Field
 
 from src.tv_mcp.core.validators import ValidationError
-from src.tv_mcp.services.options import process_option_chain_with_analysis, fetch_nse_option_chain_oi
+from src.tv_mcp.services.options import (
+    fetch_option_chain_oi,
+    process_option_chain_with_analysis,
+)
 
 from ..serializers import serialize_error, serialize_success
 
 
-async def get_nse_option_chain_oi(
+async def get_option_chain_oi(
+    exchange: Annotated[
+        str,
+        Field(
+            description=(
+                "Stock exchange for OI data. ONLY supports: NSE, BSE. REQUIRED."
+            ),
+        ),
+    ],
     symbol: Annotated[
         str,
         Field(
-            description="NSE Index symbol. ONLY supports: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY, NIFTYNXT50. REQUIRED.",
+            description=(
+                "Index symbol for the selected exchange. "
+                "For NSE: NIFTY, BANKNIFTY, FINNIFTY, MIDCPNIFTY, NIFTYNXT50. "
+                "For BSE: SENSEX, BANKEX, SX50. REQUIRED."
+            ),
         ),
     ],
     expiry_date: Annotated[
         str,
         Field(
-            description="Option expiry date in NSE format 'DD-MMM-YYYY' (e.g., '19-Feb-2026'). REQUIRED. If invalid, error response will include list of valid dates.",
+            description=(
+                "Option expiry date in ISO format 'YYYY-MM-DD' (e.g., '2026-03-25'). "
+                "REQUIRED. If invalid, error response includes valid_dates."
+            ),
         ),
     ],
 ) -> str:
     """
-    Fetch real-time Open Interest (OI) data and Put-Call Ratio (PCR) from NSE India.
-    Use this for advanced Indian market sentiment analysis based on OI accumulation and shifts.
-    
-    The expiry date is automatically validated against NSE's available expiry dates. If you provide an invalid date, 
-    the response will include a helpful error message with all available valid dates for that symbol.
-    
-    NOTE: NSE volume data ('vol') represents the number of LOTS traded, not the number of shares.
+    Fetch real-time Option Chain Open Interest (OI) and Put-Call Ratio (PCR) for Indian indices.
+    Supports only NSE and BSE in this tool, with exchange-aware symbol validation.
+    Returns strike-wise combined CE/PE OI details (not Greeks).
     """
     try:
-        result = fetch_nse_option_chain_oi(symbol=symbol, expiry_date=expiry_date)
+        result = fetch_option_chain_oi(
+            exchange=exchange,
+            symbol=symbol,
+            expiry_date=expiry_date,
+        )
         if not result.get("success"):
-            details = {"valid_dates": result["valid_dates"]} if result.get("valid_dates") else None
+            details = (
+                {"valid_dates": result["valid_dates"]}
+                if result.get("valid_dates")
+                else None
+            )
             return serialize_error(result.get("message", "Unknown error"), details=details)
         return serialize_success(result)
     except ValidationError as e:
@@ -92,6 +114,7 @@ async def get_option_chain_greeks(
 ) -> str:
     """
     Fetch real-time Option Chain data with Greeks analysis (Delta, Gamma, Theta, Vega, Rho, IV).
+    This tool uses TradingView data and can work with exchanges/symbols supported by TradingView.
     """
     try:
         parsed_itm = int(no_of_ITM) if isinstance(no_of_ITM, str) else no_of_ITM

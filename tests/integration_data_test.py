@@ -4,13 +4,19 @@ These tests make actual network requests to TradingView.
 """
 
 import os
+from datetime import datetime
 import pytest
 from src.tv_mcp.services.historical import fetch_historical_data
 from src.tv_mcp.services.technicals import fetch_all_indicators
 from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
 from src.tv_mcp.services.ideas import fetch_ideas
 from src.tv_mcp.services.minds import fetch_minds
-from src.tv_mcp.services.options import process_option_chain_with_analysis, get_current_spot_price, fetch_nse_option_chain_oi
+from src.tv_mcp.services.options import (
+    fetch_nse_valid_expiry_dates,
+    fetch_option_chain_oi,
+    get_current_spot_price,
+    process_option_chain_with_analysis,
+)
 
 # Skip all tests in this module if TRADINGVIEW_COOKIE is not set
 pytestmark = pytest.mark.skipif(
@@ -164,14 +170,17 @@ def test_real_minds_with_filter():
 
 def test_real_nse_oi_data():
     """Test fetching real NSE OI data."""
-    # We need a valid future expiry for this to work
-    import datetime
-    # This is a bit tricky as NSE expiries change weekly.
-    # We'll try to find one or just verify the call structure.
-    # For now, let's use a known upcoming one if possible or just check failure msg consistency.
-    result = fetch_nse_option_chain_oi(symbol="NIFTY", expiry_date="20-Feb-2026")
-    # Even if expiry passed, NSE might return error message which we handle.
-    assert "success" in result
+    expiry_lookup = fetch_nse_valid_expiry_dates("NIFTY")
+    assert expiry_lookup.get("success") is True
+    nse_expiry = expiry_lookup["expiryDates"][0]
+    iso_expiry = datetime.strptime(nse_expiry, "%d-%b-%Y").strftime("%Y-%m-%d")
+
+    result = fetch_option_chain_oi(exchange="NSE", symbol="NIFTY", expiry_date=iso_expiry)
+    assert result["success"] is True
+    assert result["exchange"] == "NSE"
+    assert result["symbol"] == "NIFTY"
+    assert result["expiry"] == iso_expiry
+    assert "data" in result
 
 def test_real_spot_price():
     """Test fetching current spot price."""

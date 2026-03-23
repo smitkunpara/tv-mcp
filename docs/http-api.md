@@ -110,7 +110,10 @@ Fetch option chain with Delta, Gamma, Theta, Vega, IV.
 ---
 
 ### `POST /nse-option-chain-oi`
-NSE-specific Open Interest + Put-Call Ratio.
+NSE-specific Open Interest + Put-Call Ratio (legacy HTTP route).
+
+Note: the unified NSE/BSE OI tool is available on MCP as `get_option_chain_oi` with `exchange`, `symbol`, and ISO `expiry_date`.
+The HTTP route below remains NSE-only and expects NSE expiry format.
 
 ```json
 {

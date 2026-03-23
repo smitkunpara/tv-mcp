@@ -49,8 +49,14 @@ INDICATOR_FIELD_MAPPING = {
 }
 VALID_INDICATORS = list(INDICATOR_MAPPING.keys())
 
-# ── NSE supported symbols ──────────────────────────────────────────
+# ── OI supported symbols by exchange ───────────────────────────────
 VALID_NSE_INDICES = ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY"]
+VALID_BSE_INDICES = ["SENSEX", "BANKEX", "SX50"]
+
+VALID_OI_EXCHANGES = {
+    "NSE": VALID_NSE_INDICES,
+    "BSE": VALID_BSE_INDICES,
+}
 
 
 def validate_exchange(exchange: str) -> str:
@@ -73,6 +79,26 @@ def validate_symbol(symbol: str) -> str:
     if not symbol or not symbol.strip():
         raise ValidationError("Symbol is required and cannot be empty.")
     return symbol.strip()
+
+
+def validate_oi_symbol(exchange: str, symbol: str) -> str:
+    normalized_exchange = exchange.upper().strip()
+    normalized_symbol = validate_symbol(symbol).upper()
+
+    if normalized_exchange not in VALID_OI_EXCHANGES:
+        supported_exchanges = ", ".join(sorted(VALID_OI_EXCHANGES.keys()))
+        raise ValidationError(
+            f"Invalid exchange: '{exchange}'. OI data supports only: {supported_exchanges}."
+        )
+
+    supported_symbols = VALID_OI_EXCHANGES[normalized_exchange]
+    if normalized_symbol not in supported_symbols:
+        raise ValidationError(
+            f"Symbol '{normalized_symbol}' is not supported on exchange '{normalized_exchange}' for OI data. "
+            f"Supported symbols for {normalized_exchange}: {', '.join(supported_symbols)}"
+        )
+
+    return normalized_symbol
 
 
 def validate_timeframe(timeframe: str) -> str:
