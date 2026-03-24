@@ -21,7 +21,7 @@ CLIENT_POST_ENDPOINTS = [
     "/ideas",
     "/minds",
     "/option-chain-greeks",
-    "/nse-option-chain-oi",
+    "/option-chain-oi",
     "/paper-trading/place-order",
     "/paper-trading/close-position",
     "/paper-trading/view-positions",

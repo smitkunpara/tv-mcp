@@ -17,7 +17,10 @@ from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
 from src.tv_mcp.services.technicals import fetch_all_indicators
 from src.tv_mcp.services.ideas import fetch_ideas
 from src.tv_mcp.services.minds import fetch_minds
-from src.tv_mcp.services.options import process_option_chain_with_analysis, fetch_nse_option_chain_oi
+from src.tv_mcp.services.options import (
+    process_option_chain_with_analysis,
+    fetch_option_chain_oi,
+)
 
 from ..auth import verify_client
 from ..schemas import (
@@ -28,7 +31,7 @@ from ..schemas import (
     IdeasRequest,
     MindsRequest,
     OptionChainGreeksRequest,
-    NseOptionChainOiRequest,
+    OptionChainOiRequest,
     GenericDataResponse,
 )
 
@@ -231,17 +234,18 @@ async def get_option_chain_greeks_endpoint(request: OptionChainGreeksRequest) ->
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
-# ── POST /nse-option-chain-oi ─────────────────────────────────────
+# ── POST /option-chain-oi ─────────────────────────────────────
 
 
 @router.post(
-    "/nse-option-chain-oi",
+    "/option-chain-oi",
     dependencies=[Depends(verify_client)],
     response_model=GenericDataResponse,
 )
-async def get_nse_option_chain_oi_endpoint(request: NseOptionChainOiRequest) -> dict:
+async def get_option_chain_oi_endpoint(request: OptionChainOiRequest) -> dict:
     try:
-        result = fetch_nse_option_chain_oi(
+        result = fetch_option_chain_oi(
+            exchange=request.exchange,
             symbol=request.symbol,
             expiry_date=request.expiry_date,
         )
@@ -255,3 +259,5 @@ async def get_nse_option_chain_oi_endpoint(request: NseOptionChainOiRequest) -> 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+

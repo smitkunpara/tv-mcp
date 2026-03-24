@@ -30,6 +30,11 @@ PAYLOADS: dict[str, dict] = {
     "/ideas": {"symbol": "BTCUSD", "exchange": "BITSTAMP"},
     "/minds": {"symbol": "NIFTY", "exchange": "NSE"},
     "/option-chain-greeks": {"symbol": "NIFTY", "exchange": "NSE"},
+    "/option-chain-oi": {
+        "exchange": "NSE",
+        "symbol": "NIFTY",
+        "expiry_date": "2026-03-26",
+    },
 }
 
 # Which service function each endpoint calls (module path for patching).
@@ -41,6 +46,7 @@ SERVICE_PATCHES: dict[str, str] = {
     "/ideas": "vercel.routers.client.fetch_ideas",
     "/minds": "vercel.routers.client.fetch_minds",
     "/option-chain-greeks": "vercel.routers.client.process_option_chain_with_analysis",
+    "/option-chain-oi": "vercel.routers.client.fetch_option_chain_oi",
 }
 
 

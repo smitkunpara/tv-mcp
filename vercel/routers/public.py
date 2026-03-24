@@ -82,7 +82,7 @@ async def root() -> dict:
             "/all-indicators",
             "/ideas",
             "/option-chain-greeks",
-            "/nse-option-chain-oi",
+            "/option-chain-oi",
             "/exchanges",
             "/indicators",
             "/timeframes",

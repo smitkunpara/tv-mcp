@@ -147,9 +147,13 @@ class OptionChainGreeksRequest(BaseModel):
     no_of_OTM: int = Field(5, description="Number of Out-of-The-Money strikes (1-20).")
 
 
-class NseOptionChainOiRequest(BaseModel):
-    symbol: str = Field(..., description="NSE Index symbol (e.g. NIFTY). REQUIRED.")
-    expiry_date: str = Field(..., description="NSE expiry format 'DD-MMM-YYYY'. REQUIRED.")
+class OptionChainOiRequest(BaseModel):
+    exchange: str = Field(
+        ...,
+        description="Stock exchange for OI data. Supports: NSE, BSE. REQUIRED.",
+    )
+    symbol: str = Field(..., description="Index symbol for selected exchange. REQUIRED.")
+    expiry_date: str = Field(..., description="Expiry date in ISO format 'YYYY-MM-DD'. REQUIRED.")
 
 
 # ── PAPER TRADING REQUEST MODELS ─────────────────────────────────
