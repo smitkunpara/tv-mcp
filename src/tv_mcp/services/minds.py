@@ -4,8 +4,10 @@ Minds service using tv_scraper.
 
 from typing import Any, Dict, Optional
 from datetime import datetime
+import pytz
 from tv_scraper import Minds
 from tv_mcp.core.validators import validate_exchange, validate_symbol
+from tv_mcp.core.settings import settings
 from tv_mcp.transforms.time import parse_ist_datetime_to_ts
 
 
@@ -13,6 +15,7 @@ def fetch_minds(
     symbol: str,
     exchange: str,
     limit: Optional[int] = None,
+    cookie: Optional[str] = None,
     start_datetime: Optional[str] = None,
     end_datetime: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -23,7 +26,7 @@ def fetch_minds(
     start_ts = parse_ist_datetime_to_ts(start_datetime) if start_datetime else None
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
-    scraper = Minds(export_result=False)
+    scraper = Minds(export_result=False, cookie=cookie or settings.TRADINGVIEW_COOKIE)
     result = scraper.get_data(exchange=exchange, symbol=symbol, limit=limit)
 
     if result.get("status") == "success":
@@ -40,9 +43,7 @@ def fetch_minds(
                     try:
                         # tv_scraper formats it as "YYYY-MM-DD HH:MM:SS" (naive in response but originally UTC)
                         dt_obj = datetime.strptime(created_str, "%Y-%m-%d %H:%M:%S")
-                        # Assuming the scraper's 'created' is UTC normalized by datetime.fromisoformat in Minds._parse_mind
-                        # and then formatted. Let's assume it's a UTC timestamp representation.
-                        import pytz
+                        # Treat parsed value as UTC for consistent epoch comparison.
                         ts = pytz.UTC.localize(dt_obj).timestamp()
                         
                         if start_ts and ts < start_ts:

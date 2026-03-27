@@ -44,9 +44,6 @@ def _parse_int(value: Any) -> Optional[int]:
     return int(parsed)
 
 
-def _parse_float(value: Any) -> Optional[float]:
-    return _parse_number(value)
-
 
 def _parse_iso_date(date_str: str) -> str:
     try:
@@ -333,26 +330,26 @@ def _fetch_nse_option_chain_oi_iso(symbol: str, expiry_date_iso: str) -> Dict[st
             pe = row.get("PE") or {}
             cleaned_rows.append(
                 {
-                    "strike": _parse_float(row.get("strikePrice")),
+                    "strike": _parse_number(row.get("strikePrice")),
                     "ce_oi": _parse_int(ce.get("openInterest")),
                     "ce_oi_chg": _parse_int(ce.get("changeinOpenInterest")),
                     "ce_vol": _parse_int(ce.get("totalTradedVolume")),
-                    "ce_iv": _parse_float(ce.get("impliedVolatility")),
-                    "ce_ltp": _parse_float(ce.get("lastPrice")),
-                    "ce_chg": _parse_float(ce.get("change")),
+                    "ce_iv": _parse_number(ce.get("impliedVolatility")),
+                    "ce_ltp": _parse_number(ce.get("lastPrice")),
+                    "ce_chg": _parse_number(ce.get("change")),
                     "pe_oi": _parse_int(pe.get("openInterest")),
                     "pe_oi_chg": _parse_int(pe.get("changeinOpenInterest")),
                     "pe_vol": _parse_int(pe.get("totalTradedVolume")),
-                    "pe_iv": _parse_float(pe.get("impliedVolatility")),
-                    "pe_ltp": _parse_float(pe.get("lastPrice")),
-                    "pe_chg": _parse_float(pe.get("change")),
+                    "pe_iv": _parse_number(pe.get("impliedVolatility")),
+                    "pe_ltp": _parse_number(pe.get("lastPrice")),
+                    "pe_chg": _parse_number(pe.get("change")),
                 }
             )
 
         ce_tot = filtered.get("CE", {})
         pe_tot = filtered.get("PE", {})
-        ce_oi = _parse_float(ce_tot.get("totOI")) or 0.0
-        pe_oi = _parse_float(pe_tot.get("totOI")) or 0.0
+        ce_oi = _parse_number(ce_tot.get("totOI")) or 0.0
+        pe_oi = _parse_number(pe_tot.get("totOI")) or 0.0
         pcr = round(pe_oi / ce_oi, 4) if ce_oi > 0 else 0
 
         return {
@@ -361,7 +358,7 @@ def _fetch_nse_option_chain_oi_iso(symbol: str, expiry_date_iso: str) -> Dict[st
             "symbol": symbol.upper(),
             "expiry": expiry_date_iso,
             "display_expiry": expiry_date_nse,
-            "underlying_price": _parse_float(
+            "underlying_price": _parse_number(
                 raw_data.get("records", {}).get("underlyingValue")
             ),
             "timestamp": _nse_timestamp_to_iso(raw_data.get("records", {}).get("timestamp")),
@@ -446,24 +443,24 @@ def _fetch_bse_option_chain_oi_iso(symbol: str, expiry_date_iso: str) -> Dict[st
             strike_value = row.get("Strike_Price1") or row.get("Strike_Price")
             cleaned_rows.append(
                 {
-                    "strike": _parse_float(strike_value),
+                    "strike": _parse_number(strike_value),
                     "ce_oi": _parse_int(row.get("C_Open_Interest")),
                     "ce_oi_chg": _parse_int(row.get("C_Absolute_Change_OI")),
                     "ce_vol": _parse_int(row.get("C_Vol_Traded")),
-                    "ce_iv": _parse_float(row.get("C_IV")),
-                    "ce_ltp": _parse_float(row.get("C_Last_Trd_Price")),
-                    "ce_chg": _parse_float(row.get("C_NetChange")),
+                    "ce_iv": _parse_number(row.get("C_IV")),
+                    "ce_ltp": _parse_number(row.get("C_Last_Trd_Price")),
+                    "ce_chg": _parse_number(row.get("C_NetChange")),
                     "pe_oi": _parse_int(row.get("Open_Interest")),
                     "pe_oi_chg": _parse_int(row.get("Absolute_Change_OI")),
                     "pe_vol": _parse_int(row.get("Vol_Traded")),
-                    "pe_iv": _parse_float(row.get("IV")),
-                    "pe_ltp": _parse_float(row.get("Last_Trd_Price")),
-                    "pe_chg": _parse_float(row.get("NetChange")),
+                    "pe_iv": _parse_number(row.get("IV")),
+                    "pe_ltp": _parse_number(row.get("Last_Trd_Price")),
+                    "pe_chg": _parse_number(row.get("NetChange")),
                 }
             )
 
-        total_ce_oi = _parse_float(raw_data.get("tot_C_Open_Interest")) or 0.0
-        total_pe_oi = _parse_float(raw_data.get("tot_Open_Interest")) or 0.0
+        total_ce_oi = _parse_number(raw_data.get("tot_C_Open_Interest")) or 0.0
+        total_pe_oi = _parse_number(raw_data.get("tot_Open_Interest")) or 0.0
         pcr = round(total_pe_oi / total_ce_oi, 4) if total_ce_oi > 0 else 0
 
         first_row = table[0] if table else {}
@@ -474,7 +471,7 @@ def _fetch_bse_option_chain_oi_iso(symbol: str, expiry_date_iso: str) -> Dict[st
             "symbol": symbol,
             "expiry": expiry_date_iso,
             "display_expiry": display_expiry,
-            "underlying_price": _parse_float(first_row.get("UlaValue")),
+            "underlying_price": _parse_number(first_row.get("UlaValue")),
             "timestamp": _bse_timestamp_to_iso(raw_data.get("ASON", {}).get("DT_TM")),
             "pcr": pcr,
             "totals": {
@@ -546,8 +543,7 @@ def process_option_chain_with_analysis(
     symbol = validate_symbol(symbol)
 
     spot_price = get_current_spot_price(symbol, exchange)
-    # Do not create a separate Options scraper instance here as it was unused.
-    # We'll instantiate and use the scraper (opt_scraper) below when making the request.
+    # Query options once, then compute expiry/strike slices locally.
     target_expiry = None
     if expiry_date and expiry_date.isdigit():
         target_expiry = int(expiry_date)

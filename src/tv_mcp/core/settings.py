@@ -36,9 +36,9 @@ class Settings:
         )
         self.ENV_FILE_PATH: str = os.path.join(os.getcwd(), ".env")
 
-        # Security keys (defaults provided for local dev)
-        self.ADMIN_API_KEY: str = os.getenv("TV_ADMIN_KEY", "admin-secret-123")
-        self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "client-secret-123")
+        # Security keys must come from environment variables.
+        self.ADMIN_API_KEY: str = os.getenv("TV_ADMIN_KEY", "")
+        self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "")
 
         # Paper Trading Configuration
         self.PAPER_TRADING_CAPITAL: float = float(os.getenv("PAPER_TRADING_CAPITAL", "100000"))

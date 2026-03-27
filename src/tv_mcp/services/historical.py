@@ -2,7 +2,7 @@
 Historical data service using tv_scraper.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tv_scraper import Streamer

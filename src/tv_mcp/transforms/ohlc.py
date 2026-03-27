@@ -97,7 +97,7 @@ def merge_ohlc_with_indicators(data: Dict) -> List[Dict[str, Any]]:
 
             field_mapping = INDICATOR_FIELD_MAPPING.get(indicator_short, {})
             for index_key, field_name in field_mapping.items():
-                merged_entry[field_name] = indicator_entry.get(index_key, 0)
+                merged_entry[field_name] = indicator_entry.get(index_key)
 
         merged_data.append(merged_entry)
 

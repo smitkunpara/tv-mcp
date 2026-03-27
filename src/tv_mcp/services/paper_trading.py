@@ -7,6 +7,7 @@ Only closed trades are persisted to SQLite; open positions are in-memory.
 """
 
 import asyncio
+import math
 import os
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
@@ -1069,7 +1070,12 @@ class PaperTradingEngine:
                 except Exception:
                     current_price = None
 
-                if current_price is not None and current_price == float(price):
+                if current_price is not None and math.isclose(
+                    current_price,
+                    float(price),
+                    rel_tol=1e-9,
+                    abs_tol=1e-9,
+                ):
                     raise ValidationError(
                         f"Alert price ({price}) equals current price ({current_price}). "
                         "Set an alert price above or below the current price."

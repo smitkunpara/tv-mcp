@@ -12,6 +12,7 @@ from toon import encode as toon_encode
 from src.tv_mcp.core.validators import (
     ValidationError,
 )
+from src.tv_mcp.core.settings import settings
 from src.tv_mcp.services.historical import fetch_historical_data
 from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
 from src.tv_mcp.services.technicals import fetch_all_indicators
@@ -162,6 +163,7 @@ async def get_ideas_endpoint(request: IdeasRequest) -> dict:
             startPage=request.startPage,
             endPage=request.endPage,
             sort=request.sort,
+            cookie=settings.TRADINGVIEW_COOKIE,
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )
@@ -187,6 +189,7 @@ async def get_minds_endpoint(request: MindsRequest) -> dict:
             symbol=request.symbol,
             exchange=request.exchange,
             limit=request.limit,
+            cookie=settings.TRADINGVIEW_COOKIE,
             start_datetime=request.start_datetime,
             end_datetime=request.end_datetime,
         )

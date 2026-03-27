@@ -18,7 +18,7 @@ class TestSettingsFromEnv:
             # Force a fresh instance
             from src.tv_mcp.core.settings import Settings
 
-            inst = Settings.__new__(Settings)
+            inst = object.__new__(Settings)
             inst._initialize()
             assert inst.TRADINGVIEW_COOKIE == "test_cookie_value"
 
@@ -26,7 +26,7 @@ class TestSettingsFromEnv:
         with patch.dict(os.environ, {"TV_ADMIN_KEY": "my-admin-key"}):
             from src.tv_mcp.core.settings import Settings
 
-            inst = Settings.__new__(Settings)
+            inst = object.__new__(Settings)
             inst._initialize()
             assert inst.ADMIN_API_KEY == "my-admin-key"
 
@@ -34,12 +34,12 @@ class TestSettingsFromEnv:
         with patch.dict(os.environ, {"TV_CLIENT_KEY": "my-client-key"}):
             from src.tv_mcp.core.settings import Settings
 
-            inst = Settings.__new__(Settings)
+            inst = object.__new__(Settings)
             inst._initialize()
             assert inst.CLIENT_API_KEY == "my-client-key"
 
-    def test_defaults_when_env_missing(self) -> None:
-        """When env vars are absent, defaults are used."""
+    def test_empty_keys_when_env_missing(self) -> None:
+        """When env vars are absent, API key settings remain empty."""
         env_overrides = {
             "TV_ADMIN_KEY": "",
             "TV_CLIENT_KEY": "",
@@ -47,15 +47,14 @@ class TestSettingsFromEnv:
         with patch.dict(os.environ, env_overrides, clear=False):
             from src.tv_mcp.core.settings import Settings
 
-            inst = Settings.__new__(Settings)
+            inst = object.__new__(Settings)
             # Remove the keys entirely so getenv returns default
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("TV_ADMIN_KEY", None)
                 os.environ.pop("TV_CLIENT_KEY", None)
                 inst._initialize()
-            # Defaults from code
-            assert inst.ADMIN_API_KEY == "admin-secret-123"
-            assert inst.CLIENT_API_KEY == "client-secret-123"
+            assert inst.ADMIN_API_KEY == ""
+            assert inst.CLIENT_API_KEY == ""
 
 
 class TestSettingsAttributes:

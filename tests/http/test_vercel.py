@@ -375,6 +375,8 @@ class TestIdeasEndpoint:
         )
         assert resp.status_code == 200
         assert "data" in resp.json()
+        _, kwargs = mock_fetch.call_args
+        assert kwargs["cookie"] == settings.TRADINGVIEW_COOKIE
 
     @patch("vercel.routers.client.fetch_ideas")
     def test_page_coercion(
@@ -411,6 +413,8 @@ class TestMindsEndpoint:
         )
         assert resp.status_code == 200
         assert "data" in resp.json()
+        _, kwargs = mock_fetch.call_args
+        assert kwargs["cookie"] == settings.TRADINGVIEW_COOKIE
 
     @patch("vercel.routers.client.fetch_minds")
     def test_limit_coercion(

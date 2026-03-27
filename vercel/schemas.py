@@ -7,7 +7,7 @@ validation constants from the new ``src.tv_mcp.core.validators`` module.
 
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.tv_mcp.core.validators import (
     VALID_TIMEFRAMES,
@@ -35,12 +35,23 @@ class HistoricalDataRequest(BaseModel):
     )
     numb_price_candles: int = Field(
         ...,
+        ge=1,
+        le=5000,
         description="Number of historical candles to fetch (1-5000). REQUIRED.",
     )
     indicators: List[str] = Field(
         default=[],
         description="List of technical indicators.",
     )
+
+    @field_validator("timeframe")
+    @classmethod
+    def validate_timeframe_value(cls, value: str) -> str:
+        if value not in VALID_TIMEFRAMES:
+            raise ValueError(
+                f"Invalid timeframe '{value}'. Valid options: {', '.join(VALID_TIMEFRAMES)}"
+            )
+        return value
 
 
 class NewsHeadlinesRequest(BaseModel):
@@ -89,6 +100,15 @@ class AllIndicatorsRequest(BaseModel):
         "1m",
         description="Time interval for indicator snapshot.",
     )
+
+    @field_validator("timeframe")
+    @classmethod
+    def validate_timeframe_value(cls, value: str) -> str:
+        if value not in VALID_TIMEFRAMES:
+            raise ValueError(
+                f"Invalid timeframe '{value}'. Valid options: {', '.join(VALID_TIMEFRAMES)}"
+            )
+        return value
 
 
 class IdeasRequest(BaseModel):
