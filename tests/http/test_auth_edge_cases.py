@@ -7,8 +7,10 @@ and public endpoints requiring no key.
 
 import pytest
 from starlette.testclient import TestClient
+from unittest.mock import patch
 
 from src.tv_mcp.core.settings import settings
+from vercel.app import create_app
 
 _CLIENT_KEY = settings.CLIENT_API_KEY
 _ADMIN_KEY = settings.ADMIN_API_KEY
@@ -160,4 +162,39 @@ class TestPublicEndpointsNoAuth:
         self, client: TestClient, endpoint: str
     ) -> None:
         resp = client.get(endpoint)
+        assert resp.status_code == 200
+
+
+class TestKeylessModeBehavior:
+    """Behavior when API keys are intentionally unset."""
+
+    def test_admin_router_not_mounted_without_admin_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(settings, "ADMIN_API_KEY", "")
+        local_client = TestClient(create_app())
+        resp = local_client.post("/update-cookies", json={})
+        assert resp.status_code == 404
+
+    def test_client_routes_open_without_client_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(settings, "CLIENT_API_KEY", "")
+        local_client = TestClient(create_app())
+
+        with patch("vercel.routers.client.fetch_historical_data") as mock_fetch:
+            mock_fetch.return_value = {"success": True, "data": [{"close": 100}]}
+            resp = local_client.post(
+                "/historical-data",
+                json={
+                    "exchange": "NSE",
+                    "symbol": "NIFTY",
+                    "timeframe": "1d",
+                    "numb_price_candles": 10,
+                    "indicators": [],
+                },
+            )
+
+        assert resp.status_code == 200
+
+    def test_paper_trading_routes_open_without_client_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(settings, "CLIENT_API_KEY", "")
+        local_client = TestClient(create_app())
+        resp = local_client.get("/paper-trading/view-alerts")
         assert resp.status_code == 200
