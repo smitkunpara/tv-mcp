@@ -13,6 +13,8 @@ __all__ = [
     "VALID_TIMEFRAMES",
     "VALID_NEWS_PROVIDERS",
     "VALID_AREAS",
+    "get_valid_indicator_mapping",
+    "get_valid_indicators",
 ]
 
 # Re-expose common lists for MCP tool descriptions
@@ -43,14 +45,96 @@ _TIMEFRAME_SET = set(VALID_TIMEFRAMES)
 _NEWS_PROVIDER_SET = set(VALID_NEWS_PROVIDERS)
 _AREA_SET = set(VALID_AREAS)
 
-# Indicator mapping for Streamer (WebSocket)
-# These are kept here as they map common names to TV's internal IDs
-INDICATOR_MAPPING = {
+# Fallback indicator mapping when live fetch fails.
+_DEFAULT_INDICATOR_MAPPING = {
     "RSI": ("STD;RSI", "44.0"),
     "MACD": ("STD;MACD", "38.0"),
     "CCI": ("STD;CCI", "37.0"),
     "BB": ("STD;Bollinger_Bands", "32.0"),
 }
+
+# Backward-compatible constant; live mapping is served via get_valid_indicator_mapping().
+INDICATOR_MAPPING = dict(_DEFAULT_INDICATOR_MAPPING)
+
+_INDICATOR_MAPPING_CACHE: Optional[dict[str, tuple[str, str]]] = None
+_INDICATOR_NAMES_CACHE: Optional[dict[str, str]] = None
+
+
+def _fetch_live_indicator_mapping() -> tuple[dict[str, tuple[str, str]], dict[str, str]]:
+    """Fetch indicator name/id/version catalog from tv_scraper streaming utils."""
+    utils_mod = importlib.import_module("tv_scraper.streaming.utils")
+    fetch_fn = getattr(utils_mod, "fetch_available_indicators")
+    response = fetch_fn()
+
+    if not isinstance(response, dict) or response.get("status") != "success":
+        return {}, {}
+
+    items = response.get("data")
+    if not isinstance(items, list):
+        return {}, {}
+
+    mapping: dict[str, tuple[str, str]] = {}
+    names: dict[str, str] = {}
+    id_to_version: dict[str, str] = {}
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        raw_name = item.get("name")
+        raw_id = item.get("id")
+        raw_version = item.get("version")
+        if not raw_name or not raw_id or not raw_version:
+            continue
+
+        display_name = str(raw_name).strip()
+        normalized = display_name.upper()
+        indicator_id = str(raw_id).strip()
+        indicator_version = str(raw_version).strip()
+        mapping[normalized] = (indicator_id, indicator_version)
+        names[normalized] = display_name
+        id_to_version[indicator_id] = indicator_version
+
+    # Keep short aliases stable for existing clients while using latest live versions.
+    for alias_name, (alias_id, fallback_version) in _DEFAULT_INDICATOR_MAPPING.items():
+        mapping[alias_name] = (alias_id, id_to_version.get(alias_id, fallback_version))
+        names[alias_name] = alias_name
+
+    return mapping, names
+
+
+def get_valid_indicator_mapping(force_refresh: bool = False) -> dict[str, tuple[str, str]]:
+    """Return valid indicator -> (script_id, version) mapping for candle streaming."""
+    global _INDICATOR_MAPPING_CACHE, _INDICATOR_NAMES_CACHE
+
+    if _INDICATOR_MAPPING_CACHE is not None and not force_refresh:
+        return _INDICATOR_MAPPING_CACHE
+
+    mapping: dict[str, tuple[str, str]]
+    names: dict[str, str]
+
+    try:
+        mapping, names = _fetch_live_indicator_mapping()
+    except Exception:
+        mapping, names = {}, {}
+
+    if not mapping:
+        mapping = dict(_DEFAULT_INDICATOR_MAPPING)
+        names = {k: k for k in mapping.keys()}
+
+    _INDICATOR_MAPPING_CACHE = mapping
+    _INDICATOR_NAMES_CACHE = names
+    return _INDICATOR_MAPPING_CACHE
+
+
+def get_valid_indicators(force_refresh: bool = False) -> List[str]:
+    """Return display names for all currently valid candle-stream indicators."""
+    global _INDICATOR_NAMES_CACHE
+
+    get_valid_indicator_mapping(force_refresh=force_refresh)
+    if not _INDICATOR_NAMES_CACHE:
+        return sorted(_DEFAULT_INDICATOR_MAPPING.keys())
+    return sorted(_INDICATOR_NAMES_CACHE.values())
 
 # Mapping internal TV field indices to human-readable names
 INDICATOR_FIELD_MAPPING = {
@@ -73,7 +157,7 @@ INDICATOR_FIELD_MAPPING = {
         "2": "Bollinger_Bands_bottom_line",
     },
 }
-VALID_INDICATORS = list(INDICATOR_MAPPING.keys())
+VALID_INDICATORS = list(_DEFAULT_INDICATOR_MAPPING.keys())
 
 # ── OI supported symbols by exchange ───────────────────────────────
 VALID_NSE_INDICES = ["NIFTY", "NIFTYNXT50", "FINNIFTY", "BANKNIFTY", "MIDCPNIFTY"]
@@ -172,15 +256,17 @@ def validate_indicators(indicators: List[str]) -> Tuple[List[str], List[str], Li
     indicator_versions: List[str] = []
     errors: List[str] = []
     warnings: List[str] = []
+    indicator_mapping = get_valid_indicator_mapping()
+    valid_names = get_valid_indicators()
 
     for indicator in indicators:
         indicator_upper = indicator.upper()
-        if indicator_upper in INDICATOR_MAPPING:
-            ind_id, ind_version = INDICATOR_MAPPING[indicator_upper]
+        if indicator_upper in indicator_mapping:
+            ind_id, ind_version = indicator_mapping[indicator_upper]
             indicator_ids.append(ind_id)
             indicator_versions.append(ind_version)
         else:
-            valid_list = ", ".join(sorted(INDICATOR_MAPPING.keys()))
+            valid_list = ", ".join(valid_names)
             errors.append(
                 f"Indicator '{indicator}' not recognized. "
                 f"Valid options are: {valid_list}"

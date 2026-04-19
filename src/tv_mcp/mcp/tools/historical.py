@@ -7,7 +7,6 @@ from typing import Annotated, List, Union
 from pydantic import Field
 
 from src.tv_mcp.core.validators import (
-    INDICATOR_MAPPING,
     ValidationError,
 )
 from src.tv_mcp.services.historical import fetch_historical_data
@@ -53,9 +52,9 @@ async def get_historical_data(
         List[str],
         Field(
             description=(
-                f"List of technical indicators to overlay. "
-                f"Options: {', '.join(INDICATOR_MAPPING.keys())}. "
-                "Use 'list_supported_indicators' tool to see the full list."
+                "List of technical indicators to overlay. "
+                "Use 'list_supported_indicators' tool to see the latest valid indicator names. "
+                "Example indicators: RSI, MACD, CCI, BB."
             ),
         ),
     ] = [],  # noqa: B006

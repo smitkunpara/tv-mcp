@@ -5,7 +5,7 @@ MCP tool handlers for metadata (exchanges, timeframes, indicators).
 from src.tv_mcp.core.validators import (
     VALID_EXCHANGES,
     VALID_TIMEFRAMES,
-    INDICATOR_MAPPING,
+    get_valid_indicators,
 )
 from ..serializers import serialize_success
 
@@ -24,7 +24,7 @@ async def list_supported_indicators() -> str:
     These can be used in the 'indicators' list parameter of get_historical_data.
     """
     return serialize_success({
-        "indicators": sorted(INDICATOR_MAPPING.keys()),
+        "indicators": get_valid_indicators(),
         "guidance": (
             "These indicators are mapped to TradingView's internal IDs and can be "
             "overlaid on historical OHLCV data."

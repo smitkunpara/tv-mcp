@@ -4,7 +4,7 @@ OHLC + indicator merge logic.
 
 from typing import Any, Dict, List
 
-from tv_mcp.core.validators import INDICATOR_MAPPING, INDICATOR_FIELD_MAPPING
+from tv_mcp.core.validators import INDICATOR_FIELD_MAPPING, get_valid_indicator_mapping
 from tv_mcp.transforms.time import convert_timestamp_to_indian_time
 
 
@@ -32,9 +32,11 @@ def merge_ohlc_with_indicators(data: Dict) -> List[Dict[str, Any]]:
             "Please verify your TradingView cookie/session and parameters."
         )
 
-    # Collect available indicators keyed by short name
+    indicator_mapping = get_valid_indicator_mapping()
+
+    # Collect available indicators keyed by requested indicator name
     available_indicators: Dict[str, list] = {}
-    for indicator_short, (indicator_key, _) in INDICATOR_MAPPING.items():
+    for indicator_short, (indicator_key, _) in indicator_mapping.items():
         for ind_name, ind_values in indicator_data.items():
             if indicator_key == ind_name:
                 available_indicators[indicator_short] = list(ind_values)
@@ -96,8 +98,17 @@ def merge_ohlc_with_indicators(data: Dict) -> List[Dict[str, Any]]:
                 continue
 
             field_mapping = INDICATOR_FIELD_MAPPING.get(indicator_short, {})
-            for index_key, field_name in field_mapping.items():
-                merged_entry[field_name] = indicator_entry.get(index_key)
+            if field_mapping:
+                for index_key, field_name in field_mapping.items():
+                    merged_entry[field_name] = indicator_entry.get(index_key)
+            else:
+                safe_name = "".join(
+                    ch if ch.isalnum() else "_" for ch in indicator_short
+                ).strip("_") or "INDICATOR"
+                for index_key, field_value in indicator_entry.items():
+                    if index_key == "timestamp":
+                        continue
+                    merged_entry[f"{safe_name}_{index_key}"] = field_value
 
         merged_data.append(merged_entry)
 
