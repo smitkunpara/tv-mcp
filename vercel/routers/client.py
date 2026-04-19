@@ -9,16 +9,16 @@ response envelope.
 from fastapi import APIRouter, Depends, HTTPException
 from toon import encode as toon_encode
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     ValidationError,
 )
-from src.tv_mcp.core.settings import settings
-from src.tv_mcp.services.historical import fetch_historical_data
-from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
-from src.tv_mcp.services.technicals import fetch_all_indicators
-from src.tv_mcp.services.ideas import fetch_ideas
-from src.tv_mcp.services.minds import fetch_minds
-from src.tv_mcp.services.options import (
+from tv_mcp.core.settings import settings
+from tv_mcp.services.historical import fetch_historical_data
+from tv_mcp.services.news import fetch_news_headlines, fetch_news_content
+from tv_mcp.services.technicals import fetch_all_indicators
+from tv_mcp.services.ideas import fetch_ideas
+from tv_mcp.services.minds import fetch_minds
+from tv_mcp.services.options import (
     process_option_chain_with_analysis,
     fetch_option_chain_oi,
 )

@@ -6,11 +6,11 @@ from typing import Annotated, List, Literal, Optional
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_NEWS_PROVIDERS,
     ValidationError,
 )
-from src.tv_mcp.services.news import fetch_news_content, fetch_news_headlines
+from tv_mcp.services.news import fetch_news_content, fetch_news_headlines
 
 from ..serializers import serialize_error, serialize_success
 

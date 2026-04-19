@@ -41,3 +41,15 @@ You can also use the [Chrome extension](../cookie_updater_extension/README.md) t
 |---|---|---|
 | `PUBLIC_APP_URL` | `https://tradingview-mcp.vercel.app` | Base URL used in the OpenAPI spec (`/openapi.json`) and root endpoint. Set this in Vercel to your **stable alias** (e.g. `https://tradingview-mcp.vercel.app`) so docs and clients use one URL instead of the deployment URL. |
 | `VERCEL_URL` | *(set by Vercel)* | Deployment hostname (no scheme). Used as fallback when `PUBLIC_APP_URL` is not set. |
+
+---
+
+## Optional / MCP Remote Server
+
+| Variable | Default | Description |
+|---|---|---|
+| `MCP_HTTP_HOST` | `0.0.0.0` | Host bind for `tradingview-mcp-http` and `tradingview-mcp-sse` |
+| `MCP_HTTP_PORT` | `8000` | Port bind for remote MCP server entrypoints |
+| `MCP_HTTP_TRANSPORT` | `http` | Transport for `tradingview-mcp-http` (`http`, `streamable-http`, or `sse`) |
+| `MCP_HTTP_PATH` | `/mcp` (HTTP) / `/sse` (SSE) | MCP mount path override |
+| `MCP_SSE_PATH` | `/sse` | Path override used by `tradingview-mcp-sse` |

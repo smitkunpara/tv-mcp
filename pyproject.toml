@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.12.0",
-    "fastmcp>=0.1.0",
+    "fastmcp>=3.1.1,<4.0.0",
     "pydantic>=2.0.0",
     "pytz>=2024.1",
     "tv-scraper==1.4.1",
@@ -29,6 +29,8 @@ dev = ["pytest>=8.0.0", "pytest-mock>=3.12.0", "pytest-asyncio>=0.23.0"]
 
 [project.scripts]
 tradingview-mcp = "tv_mcp.mcp.server:main"
+tradingview-mcp-http = "tv_mcp.mcp.http_server:main"
+tradingview-mcp-sse = "tv_mcp.mcp.http_server:main_sse"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tv_mcp"]

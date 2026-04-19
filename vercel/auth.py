@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
-from src.tv_mcp.core.settings import settings
+from tv_mcp.core.settings import settings
 
 admin_header_scheme = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 client_header_scheme = APIKeyHeader(name="X-Client-Key", auto_error=False)

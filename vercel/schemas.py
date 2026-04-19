@@ -9,7 +9,7 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_TIMEFRAMES,
     VALID_NEWS_PROVIDERS,
     INDICATOR_MAPPING,

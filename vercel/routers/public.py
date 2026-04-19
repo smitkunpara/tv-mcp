@@ -8,7 +8,7 @@ from fastapi import APIRouter
 
 from ..config import get_public_url
 from ..schemas import HealthResponse
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_EXCHANGES,
     VALID_TIMEFRAMES,
     INDICATOR_MAPPING,

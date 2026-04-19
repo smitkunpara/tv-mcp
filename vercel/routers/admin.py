@@ -6,8 +6,8 @@ Uses ``verify_admin`` for auth and verifies cookies by calling
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from src.tv_mcp.services.ideas import fetch_ideas
-from src.tv_mcp.core.settings import settings
+from tv_mcp.services.ideas import fetch_ideas
+from tv_mcp.core.settings import settings
 
 from ..auth import verify_admin
 

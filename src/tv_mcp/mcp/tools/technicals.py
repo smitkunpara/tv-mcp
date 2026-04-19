@@ -6,11 +6,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_TIMEFRAMES,
     ValidationError,
 )
-from src.tv_mcp.services.technicals import fetch_all_indicators
+from tv_mcp.services.technicals import fetch_all_indicators
 
 from ..serializers import serialize_error, serialize_success
 

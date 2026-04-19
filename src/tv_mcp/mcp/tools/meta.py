@@ -2,7 +2,7 @@
 MCP tool handlers for metadata (exchanges, timeframes, indicators).
 """
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_EXCHANGES,
     VALID_TIMEFRAMES,
     get_valid_indicators,

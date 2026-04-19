@@ -51,6 +51,53 @@ Add to `.vscode/mcp.json`:
 uv run python vercel/app.py   # listens on http://localhost:4589
 ```
 
+### MCP HTTP Server (remote agents, API-key protected)
+
+```bash
+export TV_CLIENT_KEY="your-client-key"
+uv run tradingview-mcp-http
+```
+
+Defaults:
+- Host: `0.0.0.0`
+- Port: `8000`
+- MCP endpoint: `/mcp`
+- Health endpoint: `/health`
+- FastMCP transport: `http` (streamable HTTP)
+
+Optional overrides:
+
+```bash
+export MCP_HTTP_HOST="0.0.0.0"
+export MCP_HTTP_PORT="8000"
+export MCP_HTTP_TRANSPORT="http"   # http | streamable-http | sse
+export MCP_HTTP_PATH="/mcp"
+```
+
+Authentication headers accepted on `/mcp`:
+- `X-API-Key: <TV_CLIENT_KEY>`
+- `X-Client-Key: <TV_CLIENT_KEY>`
+- `Authorization: Bearer <TV_CLIENT_KEY>`
+
+### MCP SSE Server (remote agents, API-key protected)
+
+```bash
+export TV_CLIENT_KEY="your-client-key"
+uv run tradingview-mcp-sse
+```
+
+Defaults:
+- Host: `0.0.0.0`
+- Port: `8000`
+- SSE endpoint: `/sse`
+- Health endpoint: `/health`
+
+Optional SSE path override:
+
+```bash
+export MCP_SSE_PATH="/sse"
+```
+
 ---
 
 ## Available Tools

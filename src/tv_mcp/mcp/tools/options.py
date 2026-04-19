@@ -6,8 +6,8 @@ from typing import Annotated, Optional, Union
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import ValidationError
-from src.tv_mcp.services.options import (
+from tv_mcp.core.validators import ValidationError
+from tv_mcp.services.options import (
     fetch_option_chain_oi,
     process_option_chain_with_analysis,
 )

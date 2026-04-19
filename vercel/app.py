@@ -7,7 +7,7 @@ Creates the ``app`` singleton used by the ASGI entrypoint.
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
-from src.tv_mcp.core.settings import settings
+from tv_mcp.core.settings import settings
 
 from .config import get_public_url
 from .routers import public, client, admin

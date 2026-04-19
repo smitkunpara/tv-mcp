@@ -9,7 +9,7 @@ import pytest
 from starlette.testclient import TestClient
 from unittest.mock import patch
 
-from src.tv_mcp.core.settings import settings
+from tv_mcp.core.settings import settings
 from vercel.app import create_app
 
 _CLIENT_KEY = settings.CLIENT_API_KEY

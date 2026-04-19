@@ -6,9 +6,9 @@ from typing import Annotated, Literal, Optional, Union
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import ValidationError
-from src.tv_mcp.services.ideas import fetch_ideas
-from src.tv_mcp.services.minds import fetch_minds
+from tv_mcp.core.validators import ValidationError
+from tv_mcp.services.ideas import fetch_ideas
+from tv_mcp.services.minds import fetch_minds
 
 from ..serializers import serialize_error, serialize_success
 

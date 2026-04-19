@@ -6,10 +6,10 @@ from typing import Annotated, List, Union
 
 from pydantic import Field
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     ValidationError,
 )
-from src.tv_mcp.services.historical import fetch_historical_data
+from tv_mcp.services.historical import fetch_historical_data
 
 from ..serializers import serialize_error, serialize_success
 
