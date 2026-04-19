@@ -11,8 +11,6 @@ from src.tv_mcp.core.settings import settings
 
 from .config import get_public_url
 from .routers import public, client, admin
-# Comment the next line to disable paper trading endpoints
-from .routers import paper_trading
 
 
 def _generate_operation_id(route: APIRoute) -> str:
@@ -45,8 +43,6 @@ def create_app() -> FastAPI:
     application.include_router(client.router)
     if settings.ADMIN_API_KEY.strip():
         application.include_router(admin.router)
-    # Comment the next line to disable paper trading endpoints
-    application.include_router(paper_trading.router)
     return application
 
 

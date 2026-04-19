@@ -15,7 +15,6 @@ dependencies = [
     "python-toon",
     "fastapi>=0.124.0",
     "uvicorn>=0.24.0",
-    "aiosqlite>=0.20.0",
 ]
 
 [build-system]

@@ -40,28 +40,6 @@ class Settings:
         self.ADMIN_API_KEY: str = os.getenv("TV_ADMIN_KEY", "")
         self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "")
 
-        # Paper Trading Configuration
-        self.PAPER_TRADING_CAPITAL: float = float(os.getenv("PAPER_TRADING_CAPITAL", "100000"))
-        self.RISK_PER_TRADE_PCT: float = float(os.getenv("RISK_PER_TRADE_PCT", "2.0"))
-        self.MIN_RISK_REWARD_RATIO: float = float(os.getenv("MIN_RISK_REWARD_RATIO", "1.5"))
-        self.TRAILING_SL_ENABLED: bool = os.getenv("TRAILING_SL_ENABLED", "false").lower() == "true"
-        self.TRAILING_SL_STEP_PCT: float = float(os.getenv("TRAILING_SL_STEP_PCT", "0.5"))
-        self.MAX_OPEN_POSITIONS: int = int(os.getenv("MAX_OPEN_POSITIONS", "10"))
-        
-        # Alert Caching: when true, all MCP tools include triggered alerts in their response
-        # When false, alerts are only returned by alert_manager
-        self.INJECT_ALERTS_IN_ALL_TOOLS: bool = os.getenv("INJECT_ALERTS_IN_ALL_TOOLS", "false").lower() == "true"
-
-        # Alert manager timeout in seconds — how long alert_manager waits before returning
-        _raw_timeout = int(os.getenv("ALERT_MANAGER_TIMEOUT_SECONDS", "300"))
-        if _raw_timeout < 0:
-            print(
-                f"\u26a0\ufe0f ALERT_MANAGER_TIMEOUT_SECONDS={_raw_timeout} is invalid "
-                "(must be >= 0). Defaulting to 300 seconds."
-            )
-            _raw_timeout = 300
-        self.ALERT_MANAGER_TIMEOUT_SECONDS: int = _raw_timeout
-
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""
         # 1. In-memory (immediate effect for all modules)

@@ -24,17 +24,6 @@ CLIENT_POST_ENDPOINTS = [
     "/minds",
     "/option-chain-greeks",
     "/option-chain-oi",
-    "/paper-trading/place-order",
-    "/paper-trading/close-position",
-    "/paper-trading/view-positions",
-    "/paper-trading/set-alert",
-    "/paper-trading/remove-alert",
-]
-
-CLIENT_GET_ENDPOINTS = [
-    "/paper-trading/show-capital",
-    "/paper-trading/alert-manager",
-    "/paper-trading/view-alerts",
 ]
 
 PUBLIC_ENDPOINTS = [
@@ -53,14 +42,6 @@ class TestMissingClientKey:
         self, client: TestClient, endpoint: str
     ) -> None:
         resp = client.post(endpoint, json={})
-        assert resp.status_code == 403
-        assert "Unauthorized" in resp.json()["detail"]
-
-    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
-    def test_missing_header_returns_403_for_get(
-        self, client: TestClient, endpoint: str
-    ) -> None:
-        resp = client.get(endpoint)
         assert resp.status_code == 403
         assert "Unauthorized" in resp.json()["detail"]
 
@@ -84,19 +65,6 @@ class TestBothKeysWrong:
         resp = client.post(
             endpoint,
             json={},
-            headers={
-                "X-Client-Key": "wrong-client-key-xxx",
-                "X-Admin-Key": "wrong-admin-key-yyy",
-            },
-        )
-        assert resp.status_code == 403
-
-    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
-    def test_wrong_client_key_still_403_for_get(
-        self, client: TestClient, endpoint: str
-    ) -> None:
-        resp = client.get(
-            endpoint,
             headers={
                 "X-Client-Key": "wrong-client-key-xxx",
                 "X-Admin-Key": "wrong-admin-key-yyy",
@@ -142,17 +110,6 @@ class TestCrossKeyConfusion:
         )
         assert resp.status_code == 403
 
-    @pytest.mark.parametrize("endpoint", CLIENT_GET_ENDPOINTS)
-    def test_admin_key_on_client_get_endpoint_returns_403(
-        self, client: TestClient, endpoint: str
-    ) -> None:
-        """Using admin key on client endpoints should fail."""
-        resp = client.get(
-            endpoint,
-            headers={"X-Client-Key": _ADMIN_KEY},
-        )
-        assert resp.status_code == 403
-
 
 class TestPublicEndpointsNoAuth:
     """Public endpoints must work with no key at all."""
@@ -191,10 +148,4 @@ class TestKeylessModeBehavior:
                 },
             )
 
-        assert resp.status_code == 200
-
-    def test_paper_trading_routes_open_without_client_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(settings, "CLIENT_API_KEY", "")
-        local_client = TestClient(create_app())
-        resp = local_client.get("/paper-trading/view-alerts")
         assert resp.status_code == 200

@@ -35,21 +35,6 @@ You can also use the [Chrome extension](../cookie_updater_extension/README.md) t
 
 ---
 
-## Paper Trading
-
-| Variable | Default | Description |
-|---|---|---|
-| `PAPER_TRADING_CAPITAL` | `100000` | Starting capital (used as default on first DB initialisation) |
-| `MIN_RISK_REWARD_RATIO` | `1.5` | Minimum R:R ratio required to place a trade (DB default) |
-| `MAX_OPEN_POSITIONS` | `10` | Maximum simultaneous open positions (DB default) |
-| `TRAILING_SL_STEP_PCT` | `0.5` | Trailing SL step as a % of current price (DB default) |
-| `ALERT_MANAGER_TIMEOUT_SECONDS` | `300` | Seconds `alert_manager` waits before timing out. Must be ≥ 0; values < 0 default to 300. |
-| `INJECT_ALERTS_IN_ALL_TOOLS` | `false` | When `true`, triggered alert events are injected into every tool response |
-
-> **Note:** Once the database exists, paper trading config is read from `trading_config` in `paper_trades.db` — not from env vars. Use [`scripts/setup_paper_trading.py`](../docs/paper-trading-guide.md#setup_paper_tradingpy) to change them.
-
----
-
 ## Optional / Vercel
 
 | Variable | Default | Description |

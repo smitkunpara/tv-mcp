@@ -51,7 +51,6 @@ class TestServiceImports:
             "src.tv_mcp.services.minds",
             "src.tv_mcp.services.technicals",
             "src.tv_mcp.services.options",
-            "src.tv_mcp.services.paper_trading",
         ],
     )
     def test_service_importable(self, module_path: str):

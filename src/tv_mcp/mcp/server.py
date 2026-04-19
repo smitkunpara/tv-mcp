@@ -20,16 +20,6 @@ from .tools.meta import (
     list_supported_indicators,
     list_available_timeframes,
 )
-from .tools.paper_trading import (
-    place_order,
-    close_position,
-    view_positions,
-    show_capital,
-    set_alert,
-    alert_manager,
-    view_available_alerts,
-    remove_alert,
-)
 
 # ── Logging Setup ────────────────────────────────────────────────
 def _setup_logging():
@@ -88,16 +78,6 @@ mcp.tool()(get_option_chain_oi)
 mcp.tool()(list_available_exchanges)
 mcp.tool()(list_supported_indicators)
 mcp.tool()(list_available_timeframes)
-
-# ── Paper Trading tools ──────────────────────────────────────────
-mcp.tool()(place_order)
-mcp.tool()(close_position)
-mcp.tool()(view_positions)
-mcp.tool()(show_capital)
-mcp.tool()(set_alert)
-mcp.tool()(alert_manager)
-mcp.tool()(view_available_alerts)
-mcp.tool()(remove_alert)
 
 
 def main() -> None:

@@ -31,14 +31,6 @@ EXPECTED_TOOLS = [
     "get_minds",
     "get_option_chain_greeks",
     "get_option_chain_oi",
-    "place_order",
-    "close_position",
-    "view_positions",
-    "show_capital",
-    "set_alert",
-    "alert_manager",
-    "view_available_alerts",
-    "remove_alert",
     "list_available_exchanges",
     "list_supported_indicators",
     "list_available_timeframes",
@@ -46,12 +38,12 @@ EXPECTED_TOOLS = [
 
 class TestToolRegistration:
     def test_all_tools_registered(self) -> None:
-        registered = list(mcp._tool_manager._tools.keys())
+        registered = [tool.name for tool in _run(mcp.list_tools())]
         for name in EXPECTED_TOOLS:
             assert name in registered, f"Tool '{name}' not registered"
 
-    def test_exactly_nineteen_tools(self) -> None:
-        assert len(mcp._tool_manager._tools) == 19
+    def test_exactly_eleven_tools(self) -> None:
+        assert len(_run(mcp.list_tools())) == 11
 
 # ── Tool handler integration (REAL DATA) ─────────────────────────
 
