@@ -26,4 +26,4 @@ LICENSE
 vercel/Redeploy.py
 
 # Local/dev entrypoints
-server.py
+/server.py
