@@ -105,9 +105,12 @@ class TestServicesReturnSuccess:
     ) -> None:
         instance = MagicMock()
         mock_streamer_cls.return_value = instance
-        instance.stream.return_value = {
-            "ohlc": [{"timestamp": 1, "open": 1, "high": 2, "low": 0, "close": 1, "volume": 1, "index": 0}],
-            "indicator": {},
+        instance.get_candles.return_value = {
+            "status": "success",
+            "data": {
+                "ohlcv": [{"timestamp": 1, "open": 1, "high": 2, "low": 0, "close": 1, "volume": 1, "index": 0}],
+                "indicators": {},
+            },
         }
         mock_merge.return_value = [{"open": 1}]
         from src.tv_mcp.services.historical import fetch_historical_data
@@ -120,7 +123,7 @@ class TestServicesReturnSuccess:
     def test_ideas_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
-        instance.scrape.return_value = {"status": "success", "data": []}
+        instance.get_ideas.return_value = {"status": "success", "data": []}
         from src.tv_mcp.services.ideas import fetch_ideas
 
         result = fetch_ideas(symbol="AAPL", exchange="NASDAQ")
@@ -131,7 +134,7 @@ class TestServicesReturnSuccess:
     def test_minds_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
-        instance.scrape.return_value = [{"text": "hi"}]
+        instance.get_minds.return_value = {"status": "success", "data": [{"text": "hi"}]}
         from src.tv_mcp.services.minds import fetch_minds
 
         result = fetch_minds(symbol="AAPL", exchange="NASDAQ")
@@ -142,7 +145,7 @@ class TestServicesReturnSuccess:
     def test_technicals_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
-        instance.scrape.return_value = {"RSI": 55}
+        instance.get_technicals.return_value = {"status": "success", "data": {"RSI": 55}}
         from src.tv_mcp.services.technicals import fetch_all_indicators
 
         result = fetch_all_indicators(exchange="NSE", symbol="NIFTY", timeframe="1m")

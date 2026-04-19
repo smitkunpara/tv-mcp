@@ -62,7 +62,6 @@ class TestServiceImports:
         [
             "src.tv_mcp.core.settings",
             "src.tv_mcp.core.validators",
-            "src.tv_mcp.core.auth",
             "src.tv_mcp.core.contracts",
         ],
     )

@@ -14,7 +14,6 @@ from tv_mcp.core.validators import (
     validate_candle_count,
     ValidationError,
 )
-from tv_mcp.core.auth import get_valid_jwt_token
 from tv_mcp.core.settings import settings
 from tv_mcp.transforms.ohlc import merge_ohlc_with_indicators
 
@@ -31,7 +30,7 @@ def fetch_historical_data(
     timeframe = validate_timeframe(timeframe)
     numb_price_candles = validate_candle_count(numb_price_candles)
 
-    indicator_ids, indicator_versions, errors, warnings = validate_indicators(indicators)
+    indicator_ids, indicator_versions, errors, _warnings = validate_indicators(indicators)
     
     if errors:
         return {"success": False, "errors": errors, "message": f"Validation failed: {'; '.join(errors)}"}
@@ -39,7 +38,7 @@ def fetch_historical_data(
     try:
         # Case 1: No indicators
         if not indicator_ids:
-            streamer = Streamer(export_result=False)
+            streamer = Streamer()
             result = streamer.get_candles(
                 exchange=exchange,
                 symbol=symbol,
@@ -57,7 +56,7 @@ def fetch_historical_data(
             })
             return {"success": True, "data": merged_data, "metadata": {"count": len(merged_data)}}
 
-        # Case 2: With indicators (requires JWT token and batching)
+        # Case 2: With indicators (requires authenticated cookie and batching)
         if not settings.TRADINGVIEW_COOKIE:
             raise ValidationError("TRADINGVIEW_COOKIE required for indicators.")
 
@@ -69,8 +68,7 @@ def fetch_historical_data(
         combined_response: Dict[str, Any] = {"ohlcv": [], "indicators": {}}
         
         def fetch_batch(idx: int, batch: List[Tuple[str, str]]):
-            token = get_valid_jwt_token()
-            streamer = Streamer(export_result=False, websocket_jwt_token=token)
+            streamer = Streamer(cookie=settings.TRADINGVIEW_COOKIE)
             return streamer.get_candles(
                 exchange=exchange,
                 symbol=symbol,

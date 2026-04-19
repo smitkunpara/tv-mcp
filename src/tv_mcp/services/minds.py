@@ -26,12 +26,9 @@ def fetch_minds(
     start_ts = parse_ist_datetime_to_ts(start_datetime) if start_datetime else None
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
-    scraper = Minds(export_result=False)
     effective_cookie = cookie or settings.TRADINGVIEW_COOKIE
-    if effective_cookie:
-        # tv_scraper Minds does not accept a cookie constructor arg; set header directly.
-        scraper._headers["Cookie"] = effective_cookie
-    result = scraper.get_data(exchange=exchange, symbol=symbol, limit=limit)
+    scraper = Minds(export=None, cookie=effective_cookie)
+    result = scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
 
     if result.get("status") == "success":
         data = result.get("data", [])

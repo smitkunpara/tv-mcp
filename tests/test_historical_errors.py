@@ -6,9 +6,8 @@ from tv_mcp.services.historical import fetch_historical_data
 def test_fetch_historical_data_error_propagation():
     """Test that historical data service correctly propagates TradingView errors when using indicators."""
     
-    # Mock settings and JWT token
-    with patch("tv_mcp.core.settings.settings") as mock_settings, \
-         patch("tv_mcp.services.historical.get_valid_jwt_token", return_value="fake_token"):
+    # Mock settings
+    with patch("tv_mcp.services.historical.settings") as mock_settings:
         
         mock_settings.TRADINGVIEW_COOKIE = "some_cookie"
         
@@ -47,8 +46,7 @@ def test_fetch_historical_data_error_propagation():
 def test_fetch_historical_data_partial_success():
     """Test that if at least one batch succeeds, we return data even if others fail."""
     
-    with patch("tv_mcp.core.settings.settings") as mock_settings, \
-         patch("tv_mcp.services.historical.get_valid_jwt_token", return_value="fake_token"):
+    with patch("tv_mcp.services.historical.settings") as mock_settings:
         
         mock_settings.TRADINGVIEW_COOKIE = "some_cookie"
         

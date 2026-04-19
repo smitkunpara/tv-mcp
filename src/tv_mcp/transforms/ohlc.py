@@ -29,7 +29,7 @@ def merge_ohlc_with_indicators(data: Dict) -> List[Dict[str, Any]]:
     if not ohlc_data:
         raise ValueError(
             "No OHLC data found in response from TradingView. "
-            "Please verify the JWT token and parameters."
+            "Please verify your TradingView cookie/session and parameters."
         )
 
     # Collect available indicators keyed by short name

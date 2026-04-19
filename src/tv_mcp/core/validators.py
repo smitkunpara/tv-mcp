@@ -1,21 +1,47 @@
 """
-Validators for tv_mcp using tv_scraper's DataValidator.
+Validators for tv_mcp using tv_scraper validation constants.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
-from tv_scraper.core.validators import DataValidator
+import importlib
+from typing import Any, List, Optional, Tuple
+
 from tv_scraper.core.exceptions import ValidationError
 
-__all__ = ["validator", "ValidationError", "VALID_EXCHANGES", "VALID_TIMEFRAMES", "VALID_NEWS_PROVIDERS", "VALID_AREAS"]
-
-# Singleton instance for the MCP project
-validator = DataValidator()
+__all__ = [
+    "ValidationError",
+    "VALID_EXCHANGES",
+    "VALID_TIMEFRAMES",
+    "VALID_NEWS_PROVIDERS",
+    "VALID_AREAS",
+]
 
 # Re-expose common lists for MCP tool descriptions
-VALID_EXCHANGES = validator.get_exchanges()
-VALID_TIMEFRAMES = list(validator.get_timeframes().keys())
-VALID_NEWS_PROVIDERS = validator.get_news_providers()
-VALID_AREAS = list(validator.get_areas().keys())
+def _load_validation_constants() -> tuple[list[str], list[str], list[str], list[str]]:
+    """Load validation constants from tv_scraper across old/new versions."""
+    try:
+        validation_data = importlib.import_module("tv_scraper.core.validation_data")
+        exchanges = sorted(getattr(validation_data, "EXCHANGES"))
+        timeframes = list(getattr(validation_data, "TIMEFRAMES").keys())
+        providers = sorted(getattr(validation_data, "NEWS_PROVIDERS"))
+        areas = list(getattr(validation_data, "AREAS").keys())
+        return exchanges, timeframes, providers, areas
+    except Exception:
+        validators_mod = importlib.import_module("tv_scraper.core.validators")
+        validator_cls = getattr(validators_mod, "DataValidator")
+        validator = validator_cls()
+        exchanges = sorted(validator.get_exchanges())
+        timeframes = list(validator.get_timeframes().keys())
+        providers = sorted(validator.get_news_providers())
+        areas = list(validator.get_areas().keys())
+        return exchanges, timeframes, providers, areas
+
+
+VALID_EXCHANGES, VALID_TIMEFRAMES, VALID_NEWS_PROVIDERS, VALID_AREAS = _load_validation_constants()
+
+_EXCHANGE_SET = set(VALID_EXCHANGES)
+_TIMEFRAME_SET = set(VALID_TIMEFRAMES)
+_NEWS_PROVIDER_SET = set(VALID_NEWS_PROVIDERS)
+_AREA_SET = set(VALID_AREAS)
 
 # Indicator mapping for Streamer (WebSocket)
 # These are kept here as they map common names to TV's internal IDs
@@ -60,18 +86,15 @@ VALID_OI_EXCHANGES = {
 
 
 def validate_exchange(exchange: str) -> str:
-    try:
-        validator.validate_exchange(exchange)
-        return exchange.upper()
-    except ValidationError:
-        # Sort and join for consistent, readable error message
-        exchanges = sorted(VALID_EXCHANGES)
-        raise ValidationError(
-            f"Invalid exchange: '{exchange}'. "
-            f"Please provide a valid exchange from the following list: {', '.join(exchanges)}"
-        )
-    except Exception as e:
-        raise ValidationError(f"Exchange validation failed for '{exchange}': {str(e)}")
+    normalized = (exchange or "").strip().upper()
+    if normalized in _EXCHANGE_SET:
+        return normalized
+
+    exchanges = sorted(VALID_EXCHANGES)
+    raise ValidationError(
+        f"Invalid exchange: '{exchange}'. "
+        f"Please provide a valid exchange from the following list: {', '.join(exchanges)}"
+    )
 
 
 def validate_symbol(symbol: str) -> str:
@@ -102,25 +125,24 @@ def validate_oi_symbol(exchange: str, symbol: str) -> str:
 
 
 def validate_timeframe(timeframe: str) -> str:
-    try:
-        validator.validate_timeframe(timeframe)
-        return timeframe
-    except ValidationError:
-        timeframes = sorted(VALID_TIMEFRAMES)
-        raise ValidationError(
-            f"Invalid timeframe: '{timeframe}'. "
-            f"Valid options are: {', '.join(timeframes)}"
-        )
-    except Exception as e:
-        raise ValidationError(f"Timeframe validation failed for '{timeframe}': {str(e)}")
+    normalized = (timeframe or "").strip()
+    if normalized in _TIMEFRAME_SET:
+        return normalized
+
+    timeframes = sorted(VALID_TIMEFRAMES)
+    raise ValidationError(
+        f"Invalid timeframe: '{timeframe}'. "
+        f"Valid options are: {', '.join(timeframes)}"
+    )
 
 
 def validate_news_provider(provider: Optional[str]) -> Optional[str]:
     if not provider or provider.lower() == "all":
         return None
-    providers = validator.get_news_providers()
-    if provider not in providers:
+
+    if provider not in _NEWS_PROVIDER_SET:
         raise ValidationError(f"Invalid news provider: '{provider}'. Please provide a valid provider name (e.g., 'tradingview', 'dow-jones') or use 'all'.")
+
     return provider
 
 
@@ -138,10 +160,10 @@ def validate_candle_count(count: Any) -> int:
 
 
 def validate_area(area: str) -> str:
-    areas = validator.get_areas()
-    if area not in areas:
-        raise ValidationError(f"Invalid area: {area}. Allowed: {', '.join(areas.keys())}")
-    return area
+    normalized = (area or "").strip().lower()
+    if normalized not in _AREA_SET:
+        raise ValidationError(f"Invalid area: {area}. Allowed: {', '.join(VALID_AREAS)}")
+    return normalized
 
 
 def validate_indicators(indicators: List[str]) -> Tuple[List[str], List[str], List[str], List[str]]:

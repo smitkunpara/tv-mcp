@@ -28,11 +28,11 @@ def fetch_ideas(
 
     try:
         scraper = Ideas(
-            export_result=False,
+            export=None,
             cookie=cookie or settings.TRADINGVIEW_COOKIE,
         )
 
-        result = scraper.get_data(
+        result = scraper.get_ideas(
             symbol=symbol,
             exchange=exchange,
             start_page=int(startPage),

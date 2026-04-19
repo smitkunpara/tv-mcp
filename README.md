@@ -8,7 +8,7 @@ Supports the **MCP protocol** (stdio) for AI assistants and a **REST API** for d
 
 ## Roadmap
 
-- [x] Migrate to `tv_scraper` V1.0.0 (Modular architecture).
+- [x] Migrate to `tv_scraper` V1.4.1 (modular architecture and standardized responses).
 - [x] Integrate unified NSE/BSE Option Chain OI & PCR data.
 - [x] Implement BSE OI scraping (SENSEX, BANKEX, SX50).
 

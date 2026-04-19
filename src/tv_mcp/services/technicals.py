@@ -16,13 +16,13 @@ def fetch_all_indicators(
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
 
-    scraper = Technicals(export_result=False)
+    scraper = Technicals(export=None)
     try:
-        result = scraper.get_data(
+        result = scraper.get_technicals(
             symbol=symbol,
             exchange=exchange,
             timeframe=timeframe,
-            all_indicators=True,
+            technical_indicators=None,
         )
 
         if isinstance(result, dict) and result.get("status") == "success":

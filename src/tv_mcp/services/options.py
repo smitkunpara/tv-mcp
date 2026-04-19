@@ -5,7 +5,7 @@ Options service using tv_scraper.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from tv_scraper import Options, Overview
+from tv_scraper import Options, Technicals
 
 from tv_mcp.core.validators import (
     ValidationError,
@@ -259,8 +259,13 @@ def validate_nse_expiry_date(symbol: str, expiry_date: str) -> Dict[str, Any]:
 
 
 def get_current_spot_price(symbol: str, exchange: str) -> float:
-    scraper = Overview(export_result=False)
-    result = scraper.get_data(exchange=exchange, symbol=symbol, fields=["close"])
+    scraper = Technicals(export=None)
+    result = scraper.get_technicals(
+        exchange=exchange,
+        symbol=symbol,
+        timeframe="1d",
+        technical_indicators=["close"],
+    )
     if result.get("status") == "success":
         price = (result.get("data") or {}).get("close")
         if price is not None:
@@ -566,10 +571,13 @@ def process_option_chain_with_analysis(
 
     # Use the base scraper from Options to make the request
     opt_scraper = Options()
-    resp = opt_scraper._make_request(
-        OPTIONS_SCANNER_URL, method="POST", json_data=payload
+    data, error_msg = opt_scraper._request(
+        "POST", OPTIONS_SCANNER_URL, json_payload=payload
     )
-    data = resp.json()
+    if error_msg:
+        return {"success": False, "message": error_msg}
+    if not isinstance(data, dict):
+        return {"success": False, "message": "Invalid options API response format."}
 
     fields = data.get("fields", [])
     raw_symbols = data.get("symbols", [])

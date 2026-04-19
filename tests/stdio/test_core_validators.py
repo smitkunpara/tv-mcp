@@ -90,7 +90,7 @@ class TestValidatorFunctions:
         assert result is None
 
     def test_provider_specific(self):
-        result = validate_news_provider("coindesk")
+        result = validate_news_provider("tradingview")
         assert result is not None
 
     def test_provider_invalid(self):

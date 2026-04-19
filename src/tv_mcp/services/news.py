@@ -34,11 +34,11 @@ def fetch_news_headlines(
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
     scraper = News(
-        export_result=False,
+        export=None,
         cookie=cookie or settings.TRADINGVIEW_COOKIE,
     )
 
-    result = scraper.get_headlines(
+    result = scraper.get_news_headlines(
         symbol=symbol,
         exchange=validated_exchange,
         provider=provider_param,
@@ -82,13 +82,13 @@ def fetch_news_content(
         raise ValidationError("At least one story ID is required.")
 
     scraper = News(
-        export_result=False,
+        export=None,
         cookie=cookie or settings.TRADINGVIEW_COOKIE,
     )
     news_content: List[Dict[str, Any]] = []
 
     for sid in story_ids:
-        result = scraper.get_content(story_id=sid)
+        result = scraper.get_news_content(story_id=sid)
         
         if result.get("status") == "success":
             data = result.get("data", {})
