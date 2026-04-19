@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from tv_scraper import Options, Technicals
+from tv_mcp.services._compat import build_scraper, call_first_supported_method
 
 from tv_mcp.core.validators import (
     ValidationError,
@@ -259,12 +260,15 @@ def validate_nse_expiry_date(symbol: str, expiry_date: str) -> Dict[str, Any]:
 
 
 def get_current_spot_price(symbol: str, exchange: str) -> float:
-    scraper = Technicals(export=None)
-    result = scraper.get_technicals(
+    scraper = build_scraper(Technicals)
+    result = call_first_supported_method(
+        scraper,
+        ("get_technicals", "get_data"),
         exchange=exchange,
         symbol=symbol,
         timeframe="1d",
         technical_indicators=["close"],
+        fields=["close"],
     )
     if result.get("status") == "success":
         price = (result.get("data") or {}).get("close")
@@ -553,42 +557,152 @@ def process_option_chain_with_analysis(
     if expiry_date and expiry_date.isdigit():
         target_expiry = int(expiry_date)
 
-    from tv_scraper.scrapers.market_data.options import (
-        DEFAULT_OPTION_COLUMNS,
-        OPTIONS_SCANNER_URL,
-    )
+    default_option_columns: List[str] | None = None
+    options_scanner_url: str | None = None
+    try:
+        from tv_scraper.scrapers.market_data.options import (
+            DEFAULT_OPTION_COLUMNS,
+            OPTIONS_SCANNER_URL,
+        )
 
-    payload = {
-        "columns": DEFAULT_OPTION_COLUMNS,
-        "filter": [
-            {"left": "type", "operation": "equal", "right": "option"},
-            {"left": "root", "operation": "equal", "right": symbol},
-        ],
-        "index_filters": [
-            {"name": "underlying_symbol", "values": [f"{exchange}:{symbol}"]}
-        ],
-    }
+        default_option_columns = list(DEFAULT_OPTION_COLUMNS)
+        options_scanner_url = OPTIONS_SCANNER_URL
+    except Exception:
+        # Some tv_scraper variants do not expose these constants.
+        default_option_columns = None
+        options_scanner_url = None
 
-    # Use the base scraper from Options to make the request
-    opt_scraper = Options()
-    data, error_msg = opt_scraper._request(
-        "POST", OPTIONS_SCANNER_URL, json_payload=payload
-    )
-    if error_msg:
-        return {"success": False, "message": error_msg}
-    if not isinstance(data, dict):
-        return {"success": False, "message": "Invalid options API response format."}
+    opt_scraper = build_scraper(Options)
+    normalized_options: List[Dict[str, Any]] = []
 
-    fields = data.get("fields", [])
-    raw_symbols = data.get("symbols", [])
+    if hasattr(opt_scraper, "_request") and options_scanner_url:
+        payload = {
+            "columns": default_option_columns,
+            "filter": [
+                {"left": "type", "operation": "equal", "right": "option"},
+                {"left": "root", "operation": "equal", "right": symbol},
+            ],
+            "index_filters": [
+                {"name": "underlying_symbol", "values": [f"{exchange}:{symbol}"]}
+            ],
+        }
+
+        data, error_msg = opt_scraper._request(
+            "POST", options_scanner_url, json_payload=payload
+        )
+        if error_msg:
+            return {"success": False, "message": error_msg}
+        if not isinstance(data, dict):
+            return {
+                "success": False,
+                "message": "Invalid options API response format.",
+            }
+
+        fields = data.get("fields", [])
+        raw_symbols = data.get("symbols", [])
+        for item in raw_symbols:
+            opt_data = {"symbol": item.get("s")}
+            values = item.get("f", [])
+            for i, field in enumerate(fields):
+                opt_data[field] = values[i] if i < len(values) else None
+            normalized_options.append(opt_data)
+
+    elif hasattr(opt_scraper, "get_by_strike") and hasattr(opt_scraper, "get_by_expiry"):
+        # Newer API: discover expiries via strike probe, then fetch each expiry.
+        base_strike = int(round(spot_price / 50.0) * 50)
+        strike_candidates = [
+            base_strike,
+            base_strike - 50,
+            base_strike + 50,
+            base_strike - 100,
+            base_strike + 100,
+            int(round(spot_price)),
+        ]
+
+        probe_data: List[Dict[str, Any]] = []
+        for strike in dict.fromkeys(strike_candidates):
+            if strike <= 0:
+                continue
+            probe = opt_scraper.get_by_strike(
+                exchange=exchange,
+                symbol=symbol,
+                strike=strike,
+                columns=default_option_columns,
+            )
+            if probe.get("status") == "success" and isinstance(probe.get("data"), list):
+                probe_data = probe.get("data", [])
+                if probe_data:
+                    break
+
+        if not probe_data:
+            return {
+                "success": False,
+                "message": f"No options data found for {exchange}:{symbol} around spot {spot_price}.",
+            }
+
+        root_value = next((row.get("root") for row in probe_data if row.get("root")), symbol)
+        expiries = sorted({int(row.get("expiration")) for row in probe_data if row.get("expiration")})
+        if not expiries:
+            return {"success": False, "message": "No expiries found"}
+
+        for exp in expiries:
+            exp_result = opt_scraper.get_by_expiry(
+                exchange=exchange,
+                symbol=symbol,
+                expiration=exp,
+                root=root_value,
+                columns=default_option_columns,
+            )
+            if exp_result.get("status") == "success" and isinstance(exp_result.get("data"), list):
+                normalized_options.extend(exp_result.get("data", []))
+
+    elif hasattr(opt_scraper, "get_options"):
+        # Alternative API requiring at least one filter.
+        probe = call_first_supported_method(
+            opt_scraper,
+            ("get_options",),
+            exchange=exchange,
+            symbol=symbol,
+            strike=int(round(spot_price)),
+            columns=default_option_columns,
+        )
+        if probe.get("status") != "success" or not isinstance(probe.get("data"), list):
+            return {
+                "success": False,
+                "message": probe.get("error") or f"No options data found for {exchange}:{symbol}.",
+            }
+
+        probe_data = probe.get("data", [])
+        expiries = sorted({int(row.get("expiration")) for row in probe_data if row.get("expiration")})
+        if not expiries:
+            return {"success": False, "message": "No expiries found"}
+
+        for exp in expiries:
+            exp_result = call_first_supported_method(
+                opt_scraper,
+                ("get_options",),
+                exchange=exchange,
+                symbol=symbol,
+                expiration=exp,
+                columns=default_option_columns,
+            )
+            if exp_result.get("status") == "success" and isinstance(exp_result.get("data"), list):
+                normalized_options.extend(exp_result.get("data", []))
+
+    else:
+        return {
+            "success": False,
+            "message": "Unsupported tv_scraper options API: no compatible options fetch method found.",
+        }
+
+    if not normalized_options:
+        return {
+            "success": False,
+            "message": f"No options rows returned for {exchange}:{symbol}.",
+        }
 
     expiry_groups: Dict[int, List[Dict[str, Any]]] = {}
-    for item in raw_symbols:
-        opt_data = {"symbol": item.get("s")}
-        values = item.get("f", [])
-        for i, field in enumerate(fields):
-            opt_data[field] = values[i] if i < len(values) else None
-
+    for opt_data in normalized_options:
         exp = opt_data.get("expiration")
         if exp:
             if exp not in expiry_groups:

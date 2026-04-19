@@ -4,7 +4,7 @@ Tests for NSE expiry date validation in options service.
 
 import pytest
 from unittest.mock import patch, MagicMock
-from src.tv_mcp.services.options import (
+from tv_mcp.services.options import (
     fetch_nse_valid_expiry_dates,
     validate_nse_expiry_date,
     fetch_nse_option_chain_oi
@@ -100,7 +100,7 @@ class TestValidateNSEExpiryDate:
         "24-Mar-2026",
     ]
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_valid_expiry_date(self, mock_fetch):
         """Test validation with valid expiry date."""
         mock_fetch.return_value = {
@@ -114,7 +114,7 @@ class TestValidateNSEExpiryDate:
         assert result["valid"] is True
         assert result["date"] == "24-Feb-2026"
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_invalid_expiry_date(self, mock_fetch):
         """Test validation with invalid expiry date."""
         mock_fetch.return_value = {
@@ -130,7 +130,7 @@ class TestValidateNSEExpiryDate:
         assert result["valid_dates"] == self.MOCK_VALID_DATES
         assert "Invalid expiry date" in result["error"]
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_invalid_expiry_date_includes_valid_options(self, mock_fetch):
         """Test that invalid date response includes list of valid dates."""
         mock_fetch.return_value = {
@@ -145,7 +145,7 @@ class TestValidateNSEExpiryDate:
         assert len(result["valid_dates"]) == len(self.MOCK_VALID_DATES)
         assert "24-Feb-2026" in result["valid_dates"]
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_validation_with_api_error(self, mock_fetch):
         """Test validation when API fetch fails."""
         mock_fetch.return_value = {
@@ -159,7 +159,7 @@ class TestValidateNSEExpiryDate:
         assert result["valid"] is False
         assert "Failed to fetch" in result["error"]
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_validation_for_different_symbols(self, mock_fetch):
         """Test validation for different NSE symbols."""
         banknifty_dates = ["24-Feb-2026", "02-Mar-2026"]
@@ -184,7 +184,7 @@ class TestFetchNSEOptionChainOIWithValidation:
         "10-Mar-2026",
     ]
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     @patch('requests.Session.get')
     def test_fetch_oi_with_valid_date(self, mock_get, mock_validate):
         """Test OI fetch with valid expiry date."""
@@ -215,7 +215,7 @@ class TestFetchNSEOptionChainOIWithValidation:
         mock_validate.assert_any_call("NIFTY", "24-Feb-2026")
         assert mock_validate.call_count >= 1
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     def test_fetch_oi_with_invalid_date_returns_helpful_error(self, mock_validate):
         """Test OI fetch with invalid date returns list of valid dates."""
         mock_validate.return_value = {
@@ -233,7 +233,7 @@ class TestFetchNSEOptionChainOIWithValidation:
         # valid_dates is a separate machine-readable field, not embedded in message
         assert result["valid_dates"] == self.MOCK_VALID_DATES
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     def test_error_message_is_ai_friendly(self, mock_validate):
         """Test that error message is user-friendly for AI."""
         mock_validate.return_value = {
@@ -255,14 +255,14 @@ class TestFetchNSEOptionChainOIWithValidation:
 
     def test_unsupported_symbol_raises_error(self):
         """Test that unsupported symbols raise ValidationError."""
-        from src.tv_mcp.core.validators import ValidationError
+        from tv_mcp.core.validators import ValidationError
 
         with pytest.raises(ValidationError) as exc_info:
             fetch_nse_option_chain_oi("INVALID", "24-Feb-2026")
 
         assert "not supported" in str(exc_info.value)
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     @patch('requests.Session.get')
     def test_fetch_oi_with_banknifty(self, mock_get, mock_validate):
         """Test OI fetch for BANKNIFTY symbol."""
@@ -296,7 +296,7 @@ class TestFetchNSEOptionChainOIWithValidation:
 class TestExpiryDateFormatValidation:
     """Test expiry date format validation."""
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     def test_accepts_dd_mmm_yyyy_format(self, mock_validate):
         """Test that DD-MMM-YYYY format is accepted."""
         mock_validate.return_value = {
@@ -316,7 +316,7 @@ class TestExpiryDateFormatValidation:
             fetch_nse_option_chain_oi("NIFTY", date)
             mock_validate.assert_called_with("NIFTY", date)
 
-    @patch('src.tv_mcp.services.options.validate_nse_expiry_date')
+    @patch('tv_mcp.services.options.validate_nse_expiry_date')
     def test_rejects_incorrect_formats(self, mock_validate):
         """Test that incorrect date formats are handled."""
         mock_validate.return_value = {
@@ -340,7 +340,7 @@ class TestExpiryDateFormatValidation:
 class TestIntegrationScenarios:
     """Integration test scenarios for expiry date validation."""
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     def test_real_world_date_validation_flow(self, mock_fetch):
         """Test realistic user interaction flow."""
         # User provides wrong date
@@ -363,7 +363,7 @@ class TestIntegrationScenarios:
         # AI can now suggest correct date
         assert "24-Feb-2026" in result["valid_dates"]
 
-    @patch('src.tv_mcp.services.options.fetch_nse_valid_expiry_dates')
+    @patch('tv_mcp.services.options.fetch_nse_valid_expiry_dates')
     @patch('requests.Session.get')
     def test_complete_workflow_with_correction(self, mock_get, mock_fetch):
         """Test complete workflow: invalid -> get valid dates -> retry with valid date."""

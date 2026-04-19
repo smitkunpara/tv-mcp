@@ -7,8 +7,8 @@ These tests hit NSE/BSE endpoints using dynamic valid expiries so they stay stab
 from datetime import datetime
 import pytest
 
-from src.tv_mcp.core.validators import ValidationError
-from src.tv_mcp.services.options import (
+from tv_mcp.core.validators import ValidationError
+from tv_mcp.services.options import (
     fetch_bse_valid_expiry_dates,
     fetch_nse_valid_expiry_dates,
     fetch_option_chain_oi,

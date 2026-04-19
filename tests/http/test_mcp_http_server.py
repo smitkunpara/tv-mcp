@@ -2,10 +2,11 @@
 Tests for authenticated MCP HTTP server entrypoint.
 """
 
+import pytest
 from starlette.testclient import TestClient
 
 from tv_mcp.core.settings import settings
-from tv_mcp.mcp.http_server import create_http_app
+from tv_mcp.mcp.http_server import _parse_transport, create_http_app
 
 
 def test_health_endpoint_is_public() -> None:
@@ -65,3 +66,8 @@ def test_sse_route_requires_api_key(monkeypatch) -> None:
     with TestClient(create_http_app(transport="sse")) as client:
         resp = client.get("/sse")
     assert resp.status_code == 403
+
+
+def test_parse_transport_rejects_invalid_value() -> None:
+    with pytest.raises(ValueError):
+        _parse_transport("invalid-transport")

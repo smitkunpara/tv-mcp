@@ -1,5 +1,5 @@
 """
-Internal contract tests for src.tv_mcp.core.contracts.
+Internal contract tests for tv_mcp.core.contracts.
 
 Verifies ServiceResponse helpers produce correct envelope shapes and
 that all service modules return dicts with a ``success`` key (via mocks).
@@ -8,7 +8,7 @@ that all service modules return dicts with a ``success`` key (via mocks).
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.tv_mcp.core.contracts import (
+from tv_mcp.core.contracts import (
     ServiceResponse,
     success_response,
     error_response,
@@ -98,8 +98,8 @@ class TestServiceResponseType:
 class TestServicesReturnSuccess:
     """Mocked service calls must return dicts containing a 'success' key."""
 
-    @patch("src.tv_mcp.services.historical.Streamer")
-    @patch("src.tv_mcp.services.historical.merge_ohlc_with_indicators")
+    @patch("tv_mcp.services.historical.Streamer")
+    @patch("tv_mcp.services.historical.merge_ohlc_with_indicators")
     def test_historical_returns_success_key(
         self, mock_merge: MagicMock, mock_streamer_cls: MagicMock
     ) -> None:
@@ -113,40 +113,40 @@ class TestServicesReturnSuccess:
             },
         }
         mock_merge.return_value = [{"open": 1}]
-        from src.tv_mcp.services.historical import fetch_historical_data
+        from tv_mcp.services.historical import fetch_historical_data
 
         result = fetch_historical_data("NSE", "RELIANCE", "1d", 1, [])
         assert isinstance(result, dict)
         assert "success" in result
 
-    @patch("src.tv_mcp.services.ideas.Ideas")
+    @patch("tv_mcp.services.ideas.Ideas")
     def test_ideas_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
         instance.get_ideas.return_value = {"status": "success", "data": []}
-        from src.tv_mcp.services.ideas import fetch_ideas
+        from tv_mcp.services.ideas import fetch_ideas
 
         result = fetch_ideas(symbol="AAPL", exchange="NASDAQ")
         assert isinstance(result, dict)
         assert "success" in result
 
-    @patch("src.tv_mcp.services.minds.Minds")
+    @patch("tv_mcp.services.minds.Minds")
     def test_minds_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
         instance.get_minds.return_value = {"status": "success", "data": [{"text": "hi"}]}
-        from src.tv_mcp.services.minds import fetch_minds
+        from tv_mcp.services.minds import fetch_minds
 
         result = fetch_minds(symbol="AAPL", exchange="NASDAQ")
         assert isinstance(result, dict)
         assert "success" in result
 
-    @patch("src.tv_mcp.services.technicals.Technicals")
+    @patch("tv_mcp.services.technicals.Technicals")
     def test_technicals_returns_success_key(self, mock_cls: MagicMock) -> None:
         instance = MagicMock()
         mock_cls.return_value = instance
         instance.get_technicals.return_value = {"status": "success", "data": {"RSI": 55}}
-        from src.tv_mcp.services.technicals import fetch_all_indicators
+        from tv_mcp.services.technicals import fetch_all_indicators
 
         result = fetch_all_indicators(exchange="NSE", symbol="NIFTY", timeframe="1m")
         assert isinstance(result, dict)

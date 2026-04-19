@@ -7,6 +7,7 @@ from tv_scraper import Ideas
 from tv_mcp.core.validators import validate_symbol, validate_exchange
 from tv_mcp.core.settings import settings
 from tv_mcp.transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.services._compat import build_scraper, call_first_supported_method
 
 
 def fetch_ideas(
@@ -27,12 +28,11 @@ def fetch_ideas(
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
     try:
-        scraper = Ideas(
-            export=None,
-            cookie=cookie or settings.TRADINGVIEW_COOKIE,
-        )
+        scraper = build_scraper(Ideas, cookie=cookie or settings.TRADINGVIEW_COOKIE)
 
-        result = scraper.get_ideas(
+        result = call_first_supported_method(
+            scraper,
+            ("get_ideas", "get_data"),
             symbol=symbol,
             exchange=exchange,
             start_page=int(startPage),

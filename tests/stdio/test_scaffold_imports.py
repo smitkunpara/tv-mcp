@@ -9,29 +9,29 @@ class TestTvScrapperScaffold:
     """Verify tv_mcp package tree is importable."""
 
     def test_tv_mcp_root(self):
-        import src.tv_mcp
-        assert hasattr(src.tv_mcp, "__version__")
+        import tv_mcp
+        assert hasattr(tv_mcp, "__version__")
 
     def test_tv_mcp_core(self):
-        import src.tv_mcp.core
-        assert src.tv_mcp.core is not None
+        import tv_mcp.core
+        assert tv_mcp.core is not None
 
     def test_tv_mcp_transforms(self):
-        import src.tv_mcp.transforms
-        assert src.tv_mcp.transforms is not None
+        import tv_mcp.transforms
+        assert tv_mcp.transforms is not None
 
     def test_tv_mcp_services(self):
-        import src.tv_mcp.services
-        assert src.tv_mcp.services is not None
+        import tv_mcp.services
+        assert tv_mcp.services is not None
 
     def test_tv_mcp_adapters(self):
-        import src.tv_mcp.adapters
-        assert src.tv_mcp.adapters is not None
+        import tv_mcp.adapters
+        assert tv_mcp.adapters is not None
 
     def test_tv_mcp_mcp(self):
-        import src.tv_mcp.mcp
-        assert src.tv_mcp.mcp is not None
+        import tv_mcp.mcp
+        assert tv_mcp.mcp is not None
 
     def test_tv_mcp_mcp_tools(self):
-        import src.tv_mcp.mcp.tools
-        assert src.tv_mcp.mcp.tools is not None
+        import tv_mcp.mcp.tools
+        assert tv_mcp.mcp.tools is not None

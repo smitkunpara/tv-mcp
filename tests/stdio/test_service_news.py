@@ -4,7 +4,7 @@ Integration tests for news service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.news import fetch_news_headlines, fetch_news_content
+from tv_mcp.services.news import fetch_news_headlines, fetch_news_content
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TRADINGVIEW_COOKIE"),

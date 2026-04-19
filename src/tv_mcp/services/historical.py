@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from tv_scraper import Streamer
 from tv_mcp.core.validators import (
+    INDICATOR_FIELD_MAPPING,
     validate_exchange,
     validate_symbol,
     validate_timeframe,
@@ -16,6 +17,7 @@ from tv_mcp.core.validators import (
 )
 from tv_mcp.core.settings import settings
 from tv_mcp.transforms.ohlc import merge_ohlc_with_indicators
+from tv_mcp.services._compat import build_scraper
 
 
 def fetch_historical_data(
@@ -38,7 +40,7 @@ def fetch_historical_data(
     try:
         # Case 1: No indicators
         if not indicator_ids:
-            streamer = Streamer()
+            streamer = build_scraper(Streamer)
             result = streamer.get_candles(
                 exchange=exchange,
                 symbol=symbol,
@@ -62,20 +64,34 @@ def fetch_historical_data(
 
         # Batch indicators (free account limit)
         BATCH_SIZE = 2
+        MAX_BATCH_ATTEMPTS = 3
         indicator_tuples = list(zip(indicator_ids, indicator_versions))
         batches = [indicator_tuples[i : i + BATCH_SIZE] for i in range(0, len(indicator_tuples), BATCH_SIZE)]
 
         combined_response: Dict[str, Any] = {"ohlcv": [], "indicators": {}}
         
         def fetch_batch(idx: int, batch: List[Tuple[str, str]]):
-            streamer = Streamer(cookie=settings.TRADINGVIEW_COOKIE)
-            return streamer.get_candles(
-                exchange=exchange,
-                symbol=symbol,
-                timeframe=timeframe,
-                numb_candles=numb_price_candles + idx,
-                indicators=batch,
-            )
+            last_error = "Streamer failure"
+            for _ in range(MAX_BATCH_ATTEMPTS):
+                try:
+                    streamer = build_scraper(Streamer, cookie=settings.TRADINGVIEW_COOKIE)
+                    result = streamer.get_candles(
+                        exchange=exchange,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                        numb_candles=numb_price_candles + idx,
+                        indicators=batch,
+                    )
+                except Exception as exc:
+                    last_error = str(exc) or last_error
+                    continue
+
+                if result.get("status") == "success":
+                    return result
+
+                last_error = result.get("error", last_error)
+
+            return {"status": "failed", "error": last_error}
 
         with ThreadPoolExecutor(max_workers=len(batches)) as executor:
             futures = {executor.submit(fetch_batch, i, b): i for i, b in enumerate(batches)}
@@ -96,12 +112,37 @@ def fetch_historical_data(
             combined_response["indicators"].update(data.get("indicators", {}))
 
         if not combined_response["ohlcv"] and first_error:
-            return {"success": False, "errors": [first_error], "message": first_error}
+            fallback_streamer = build_scraper(Streamer)
+            fallback = fallback_streamer.get_candles(
+                exchange=exchange,
+                symbol=symbol,
+                timeframe=timeframe,
+                numb_candles=numb_price_candles,
+            )
+
+            if fallback.get("status") == "success":
+                fallback_data = fallback.get("data", {})
+                combined_response["ohlcv"] = fallback_data.get("ohlcv", [])
+            else:
+                return {"success": False, "errors": [first_error], "message": first_error}
 
         merged_data = merge_ohlc_with_indicators({
             "ohlc": combined_response["ohlcv"],
             "indicator": combined_response["indicators"]
         })
+
+        # Keep requested indicator columns present even when upstream returns
+        # OHLCV only due transient indicator stream gaps.
+        expected_fields = set()
+        for indicator_name in indicators:
+            expected_fields.update(INDICATOR_FIELD_MAPPING.get(indicator_name, {}).values())
+
+        if expected_fields:
+            for row in merged_data:
+                if "_merge_errors" in row:
+                    continue
+                for field_name in expected_fields:
+                    row.setdefault(field_name, None)
 
         return {
             "success": True,

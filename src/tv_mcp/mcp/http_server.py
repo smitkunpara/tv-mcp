@@ -3,7 +3,7 @@ HTTP entrypoint for remote MCP connections with API-key authentication.
 """
 
 import os
-from typing import Literal
+from typing import Literal, cast
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -70,6 +70,14 @@ def _default_mount_path(transport: SupportedHTTPTransport) -> str:
     return "/mcp"
 
 
+def _parse_transport(raw_value: str) -> SupportedHTTPTransport:
+    normalized = raw_value.strip().lower()
+    if normalized not in _SUPPORTED_HTTP_TRANSPORTS:
+        supported = ", ".join(sorted(_SUPPORTED_HTTP_TRANSPORTS))
+        raise ValueError(f"Unsupported transport '{raw_value}'. Supported: {supported}")
+    return cast(SupportedHTTPTransport, normalized)
+
+
 def create_http_app(
     transport: SupportedHTTPTransport = "http",
     mcp_mount_path: str | None = None,
@@ -112,7 +120,7 @@ def main() -> None:
     """Run the authenticated MCP HTTP server (streamable HTTP default)."""
     host = os.getenv("MCP_HTTP_HOST", "0.0.0.0")
     port = int(os.getenv("MCP_HTTP_PORT", "8000"))
-    transport = os.getenv("MCP_HTTP_TRANSPORT", "http").strip().lower()
+    transport = _parse_transport(os.getenv("MCP_HTTP_TRANSPORT", "http"))
     mount_path = os.getenv("MCP_HTTP_PATH")
 
     http_app = create_http_app(transport=transport, mcp_mount_path=mount_path)

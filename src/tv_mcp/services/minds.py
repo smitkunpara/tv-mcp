@@ -9,6 +9,7 @@ from tv_scraper import Minds
 from tv_mcp.core.validators import validate_exchange, validate_symbol
 from tv_mcp.core.settings import settings
 from tv_mcp.transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.services._compat import build_scraper, call_first_supported_method
 
 
 def fetch_minds(
@@ -27,8 +28,14 @@ def fetch_minds(
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
     effective_cookie = cookie or settings.TRADINGVIEW_COOKIE
-    scraper = Minds(export=None, cookie=effective_cookie)
-    result = scraper.get_minds(exchange=exchange, symbol=symbol, limit=limit)
+    scraper = build_scraper(Minds, cookie=effective_cookie)
+    result = call_first_supported_method(
+        scraper,
+        ("get_minds", "get_data"),
+        exchange=exchange,
+        symbol=symbol,
+        limit=limit,
+    )
 
     if result.get("status") == "success":
         data = result.get("data", [])

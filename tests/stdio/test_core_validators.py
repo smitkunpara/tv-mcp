@@ -6,7 +6,7 @@ Ensures all validator functions behave correctly.
 
 import pytest
 
-from src.tv_mcp.core.validators import (
+from tv_mcp.core.validators import (
     VALID_EXCHANGES,
     VALID_TIMEFRAMES,
     VALID_NEWS_PROVIDERS,

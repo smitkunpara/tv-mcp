@@ -4,7 +4,7 @@ Tests for dynamic indicator catalog loading and mapping behavior.
 
 import types
 
-from src.tv_mcp.core import validators
+from tv_mcp.core import validators
 
 
 def _reset_indicator_cache() -> None:

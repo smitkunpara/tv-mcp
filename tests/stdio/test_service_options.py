@@ -4,7 +4,7 @@ Integration tests for options service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.options import process_option_chain_with_analysis, get_current_spot_price
+from tv_mcp.services.options import process_option_chain_with_analysis, get_current_spot_price
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TRADINGVIEW_COOKIE"),

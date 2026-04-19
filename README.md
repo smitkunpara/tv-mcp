@@ -46,6 +46,12 @@ Authentication headers accepted on SSE endpoint:
 - `X-Client-Key: <TV_CLIENT_KEY>`
 - `Authorization: Bearer <TV_CLIENT_KEY>`
 
+## Smoke Test (Vercel)
+
+```bash
+uv run python scripts/vercel_sse_smoke_test.py --url https://tradingview-mcp.vercel.app --client-key "$TV_CLIENT_KEY"
+```
+
 ## Available Tools
 
 | Category | Tools |

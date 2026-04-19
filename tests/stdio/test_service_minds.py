@@ -4,7 +4,7 @@ Integration tests for minds service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.minds import fetch_minds
+from tv_mcp.services.minds import fetch_minds
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TRADINGVIEW_COOKIE"),

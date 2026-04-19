@@ -4,7 +4,7 @@ Integration tests for technicals service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.technicals import fetch_all_indicators
+from tv_mcp.services.technicals import fetch_all_indicators
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TRADINGVIEW_COOKIE"),

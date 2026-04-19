@@ -13,6 +13,7 @@ from tv_mcp.core.validators import (
 )
 from tv_mcp.core.settings import settings
 from tv_mcp.transforms.time import parse_ist_datetime_to_ts
+from tv_mcp.services._compat import build_scraper, call_first_supported_method
 
 
 def fetch_news_headlines(
@@ -33,12 +34,11 @@ def fetch_news_headlines(
     start_ts = parse_ist_datetime_to_ts(start_datetime) if start_datetime else None
     end_ts = parse_ist_datetime_to_ts(end_datetime) if end_datetime else None
 
-    scraper = News(
-        export=None,
-        cookie=cookie or settings.TRADINGVIEW_COOKIE,
-    )
+    scraper = build_scraper(News, cookie=cookie or settings.TRADINGVIEW_COOKIE)
 
-    result = scraper.get_news_headlines(
+    result = call_first_supported_method(
+        scraper,
+        ("get_news_headlines", "get_headlines"),
         symbol=symbol,
         exchange=validated_exchange,
         provider=provider_param,
@@ -81,14 +81,15 @@ def fetch_news_content(
     if not story_ids:
         raise ValidationError("At least one story ID is required.")
 
-    scraper = News(
-        export=None,
-        cookie=cookie or settings.TRADINGVIEW_COOKIE,
-    )
+    scraper = build_scraper(News, cookie=cookie or settings.TRADINGVIEW_COOKIE)
     news_content: List[Dict[str, Any]] = []
 
     for sid in story_ids:
-        result = scraper.get_news_content(story_id=sid)
+        result = call_first_supported_method(
+            scraper,
+            ("get_news_content", "get_content"),
+            story_id=sid,
+        )
         
         if result.get("status") == "success":
             data = result.get("data", {})

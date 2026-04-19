@@ -4,8 +4,8 @@ Integration tests for historical service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.historical import fetch_historical_data
-from src.tv_mcp.core.validators import ValidationError
+from tv_mcp.services.historical import fetch_historical_data
+from tv_mcp.core.validators import ValidationError
 
 # Skip if no cookie
 pytestmark = pytest.mark.skipif(

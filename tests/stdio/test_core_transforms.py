@@ -3,7 +3,7 @@ Tests for tv_mcp.transforms.ohlc.
 """
 
 import pytest
-from src.tv_mcp.transforms.ohlc import (
+from tv_mcp.transforms.ohlc import (
     convert_timestamp_to_indian_time,
     merge_ohlc_with_indicators,
 )

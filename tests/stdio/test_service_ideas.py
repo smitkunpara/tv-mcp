@@ -4,7 +4,7 @@ Integration tests for ideas service using real data.
 
 import pytest
 import os
-from src.tv_mcp.services.ideas import fetch_ideas
+from tv_mcp.services.ideas import fetch_ideas
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TRADINGVIEW_COOKIE"),

@@ -5,6 +5,7 @@ Technicals service using tv_scraper.
 from typing import Any, Dict
 from tv_scraper import Technicals
 from tv_mcp.core.validators import validate_exchange, validate_symbol, validate_timeframe
+from tv_mcp.services._compat import build_scraper, call_first_supported_method
 
 
 def fetch_all_indicators(
@@ -16,13 +17,16 @@ def fetch_all_indicators(
     symbol = validate_symbol(symbol)
     timeframe = validate_timeframe(timeframe)
 
-    scraper = Technicals(export=None)
+    scraper = build_scraper(Technicals)
     try:
-        result = scraper.get_technicals(
+        result = call_first_supported_method(
+            scraper,
+            ("get_technicals", "get_data"),
             symbol=symbol,
             exchange=exchange,
             timeframe=timeframe,
             technical_indicators=None,
+            all_indicators=True,
         )
 
         if isinstance(result, dict) and result.get("status") == "success":
