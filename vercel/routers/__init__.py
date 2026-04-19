@@ -1,3 +1,0 @@
-"""
-vercel route modules.
-"""

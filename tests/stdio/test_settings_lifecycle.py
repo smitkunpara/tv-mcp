@@ -22,14 +22,6 @@ class TestSettingsFromEnv:
             inst._initialize()
             assert inst.TRADINGVIEW_COOKIE == "test_cookie_value"
 
-    def test_loads_admin_key_from_env(self) -> None:
-        with patch.dict(os.environ, {"TV_ADMIN_KEY": "my-admin-key"}):
-            from src.tv_mcp.core.settings import Settings
-
-            inst = object.__new__(Settings)
-            inst._initialize()
-            assert inst.ADMIN_API_KEY == "my-admin-key"
-
     def test_loads_client_key_from_env(self) -> None:
         with patch.dict(os.environ, {"TV_CLIENT_KEY": "my-client-key"}):
             from src.tv_mcp.core.settings import Settings
@@ -40,20 +32,15 @@ class TestSettingsFromEnv:
 
     def test_empty_keys_when_env_missing(self) -> None:
         """When env vars are absent, API key settings remain empty."""
-        env_overrides = {
-            "TV_ADMIN_KEY": "",
-            "TV_CLIENT_KEY": "",
-        }
+        env_overrides = {"TV_CLIENT_KEY": ""}
         with patch.dict(os.environ, env_overrides, clear=False):
             from src.tv_mcp.core.settings import Settings
 
             inst = object.__new__(Settings)
             # Remove the keys entirely so getenv returns default
             with patch.dict(os.environ, {}, clear=False):
-                os.environ.pop("TV_ADMIN_KEY", None)
                 os.environ.pop("TV_CLIENT_KEY", None)
                 inst._initialize()
-            assert inst.ADMIN_API_KEY == ""
             assert inst.CLIENT_API_KEY == ""
 
 
@@ -65,12 +52,6 @@ class TestSettingsAttributes:
 
         assert hasattr(settings, "TRADINGVIEW_COOKIE")
         assert isinstance(settings.TRADINGVIEW_COOKIE, str)
-
-    def test_has_admin_api_key(self) -> None:
-        from src.tv_mcp.core.settings import settings
-
-        assert hasattr(settings, "ADMIN_API_KEY")
-        assert isinstance(settings.ADMIN_API_KEY, str)
 
     def test_has_client_api_key(self) -> None:
         from src.tv_mcp.core.settings import settings

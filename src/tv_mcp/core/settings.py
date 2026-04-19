@@ -36,8 +36,7 @@ class Settings:
         )
         self.ENV_FILE_PATH: str = os.path.join(os.getcwd(), ".env")
 
-        # Security keys must come from environment variables.
-        self.ADMIN_API_KEY: str = os.getenv("TV_ADMIN_KEY", "")
+        # Client key for authenticated MCP HTTP/SSE access.
         self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "")
 
     def update_cookie(self, new_cookie_string: str):

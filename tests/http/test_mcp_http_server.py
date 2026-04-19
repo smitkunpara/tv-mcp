@@ -4,8 +4,8 @@ Tests for authenticated MCP HTTP server entrypoint.
 
 from starlette.testclient import TestClient
 
-from src.tv_mcp.core.settings import settings
-from src.tv_mcp.mcp.http_server import create_http_app
+from tv_mcp.core.settings import settings
+from tv_mcp.mcp.http_server import create_http_app
 
 
 def test_health_endpoint_is_public() -> None:

@@ -34,14 +34,6 @@ def client() -> TestClient:
 @pytest.fixture()
 def auth_headers() -> dict[str, str]:
     """Headers with a valid X-Client-Key."""
-    from src.tv_mcp.core.settings import settings
+    from tv_mcp.core.settings import settings
 
     return {"X-Client-Key": settings.CLIENT_API_KEY}
-
-
-@pytest.fixture()
-def admin_headers() -> dict[str, str]:
-    """Headers with a valid X-Admin-Key."""
-    from src.tv_mcp.core.settings import settings
-
-    return {"X-Admin-Key": settings.ADMIN_API_KEY}

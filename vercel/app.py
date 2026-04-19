@@ -1,49 +1,24 @@
-"""
-FastAPI application factory for the vercel HTTP server.
+"""Vercel ASGI entrypoint for authenticated MCP over SSE."""
 
-Creates the ``app`` singleton used by the ASGI entrypoint.
-"""
+import os
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
-from fastapi.middleware.cors import CORSMiddleware
-from tv_mcp.core.settings import settings
 
-from .config import get_public_url
-from .routers import public, client, admin
+# Force local src package resolution on Vercel before vendored modules.
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_SRC_ROOT = _PROJECT_ROOT / "src"
+if str(_SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SRC_ROOT))
 
-
-def _generate_operation_id(route: APIRoute) -> str:
-    """Create short, deterministic operation IDs for OpenAPI consumers."""
-    method = sorted(route.methods)[0].lower() if route.methods else "op"
-    path = route.path_format.strip("/").replace("/", "_").replace("-", "_")
-    if not path:
-        path = "root"
-    return f"{method}_{path}"
+from tv_mcp.mcp.http_server import create_http_app
 
 
 def create_app() -> FastAPI:
-    """Build and return a fully-configured FastAPI application."""
-    base_url = get_public_url()
-    application = FastAPI(
-        title="TradingView HTTP API",
-        description="REST API for TradingView data scraping tools",
-        version="1.0.0",
-        servers=[{"url": base_url}],
-        generate_unique_id_function=_generate_operation_id,
-    )
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    application.include_router(public.router)
-    application.include_router(client.router)
-    if settings.ADMIN_API_KEY.strip():
-        application.include_router(admin.router)
-    return application
+    """Build a Vercel-ready FastAPI app with MCP SSE transport."""
+    mount_path = os.getenv("MCP_SSE_PATH") or os.getenv("MCP_HTTP_PATH") or "/sse"
+    return create_http_app(transport="sse", mcp_mount_path=mount_path)
 
 
 app = create_app()

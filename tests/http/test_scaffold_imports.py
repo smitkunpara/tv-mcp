@@ -16,11 +16,3 @@ class TestVercelScaffold:
         from vercel.app import app, create_app
         assert app is not None
         assert create_app is not None
-
-    def test_vercel_routers(self):
-        import vercel.routers
-        assert vercel.routers is not None
-
-    def test_vercel_services(self):
-        import vercel.services
-        assert vercel.services is not None

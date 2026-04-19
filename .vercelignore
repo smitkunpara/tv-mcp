@@ -3,10 +3,10 @@
 
 # Test files (not needed for deployment)
 tests/
+temp/
+scripts/
+docs/
 
-
-# MCP stdio server (not needed for HTTP API)
-src/tv_mcp/mcp/server.py
 
 # Sensitive files
 .env
@@ -24,3 +24,6 @@ LICENSE
 
 # files
 vercel/Redeploy.py
+
+# Local/dev entrypoints
+server.py

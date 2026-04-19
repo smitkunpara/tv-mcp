@@ -22,29 +22,17 @@ All configuration is driven by environment variables. Copy `.env.example` to `.e
 6. In `.env`, set `TRADINGVIEW_COOKIE="<paste here>"`.
 7. If the cookie value contains quotes, escape them as `\"`.
 
-You can also use the [Chrome extension](../cookie_updater_extension/README.md) to update cookies automatically.
-
 ---
 
-## Security Keys
+## Security
 
 | Variable | Default | Description |
 |---|---|---|
-| `TV_ADMIN_KEY` | `admin-secret-123` | Key required for admin endpoints (e.g. `/update-cookies`). **Change this in production.** |
-| `TV_CLIENT_KEY` | `client-secret-123` | Key required for client data endpoints (e.g. ChatGPT / Vercel). **Change this in production.** |
+| `TV_CLIENT_KEY` | `client-secret-123` | API key required for authenticated MCP HTTP/SSE access. **Change this in production.** |
 
 ---
 
-## Optional / Vercel
-
-| Variable | Default | Description |
-|---|---|---|
-| `PUBLIC_APP_URL` | `https://tradingview-mcp.vercel.app` | Base URL used in the OpenAPI spec (`/openapi.json`) and root endpoint. Set this in Vercel to your **stable alias** (e.g. `https://tradingview-mcp.vercel.app`) so docs and clients use one URL instead of the deployment URL. |
-| `VERCEL_URL` | *(set by Vercel)* | Deployment hostname (no scheme). Used as fallback when `PUBLIC_APP_URL` is not set. |
-
----
-
-## Optional / MCP Remote Server
+## Optional / MCP Server
 
 | Variable | Default | Description |
 |---|---|---|
