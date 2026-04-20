@@ -29,6 +29,14 @@ All configuration is driven by environment variables. Copy `.env.example` to `.e
 | Variable | Default | Description |
 |---|---|---|
 | `TV_CLIENT_KEY` | `client-secret-123` | API key required for authenticated MCP HTTP/SSE access. **Change this in production.** |
+| `TV_OAUTH_JWKS_URL` | *(empty)* | JWKS endpoint used to validate OAuth bearer JWTs. If set, OAuth is enabled. |
+| `TV_OAUTH_ISSUER` | *(empty)* | Optional expected `iss` claim for bearer JWTs. |
+| `TV_OAUTH_AUDIENCE` | *(empty)* | Optional expected `aud` claim for bearer JWTs. |
+| `TV_OAUTH_REQUIRED_SCOPE` | *(empty)* | Optional required scope (from `scope` or `scp`) in bearer JWT claims. |
+| `TV_OAUTH_ALGORITHMS` | `RS256` | Comma-separated JWT algorithms allowed during verification. |
+| `TV_OAUTH_LEEWAY_SECONDS` | `30` | Allowed clock skew when validating token expiry/not-before claims. |
+
+When OAuth is enabled, valid bearer tokens are accepted first and API key auth remains available as a fallback.
 
 ---
 

@@ -39,6 +39,23 @@ class Settings:
         # Client key for authenticated MCP HTTP/SSE access.
         self.CLIENT_API_KEY: str = os.getenv("TV_CLIENT_KEY", "")
 
+        # Optional OAuth JWT validation config (with API key fallback).
+        self.OAUTH_JWKS_URL: str = os.getenv("TV_OAUTH_JWKS_URL", "")
+        self.OAUTH_ISSUER: str = os.getenv("TV_OAUTH_ISSUER", "")
+        self.OAUTH_AUDIENCE: str = os.getenv("TV_OAUTH_AUDIENCE", "")
+        self.OAUTH_REQUIRED_SCOPE: str = os.getenv("TV_OAUTH_REQUIRED_SCOPE", "")
+
+        oauth_algorithms_raw = os.getenv("TV_OAUTH_ALGORITHMS", "RS256")
+        self.OAUTH_ALGORITHMS: list[str] = [
+            algo.strip() for algo in oauth_algorithms_raw.split(",") if algo.strip()
+        ] or ["RS256"]
+
+        leeway_raw = os.getenv("TV_OAUTH_LEEWAY_SECONDS", "30")
+        try:
+            self.OAUTH_LEEWAY_SECONDS: int = max(0, int(leeway_raw))
+        except ValueError:
+            self.OAUTH_LEEWAY_SECONDS = 30
+
     def update_cookie(self, new_cookie_string: str):
         """Update cookie in memory, env var, and optionally persist to .env."""
         # 1. In-memory (immediate effect for all modules)

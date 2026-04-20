@@ -46,6 +46,11 @@ Authentication headers accepted on SSE endpoint:
 - `X-Client-Key: <TV_CLIENT_KEY>`
 - `Authorization: Bearer <TV_CLIENT_KEY>`
 
+Optional OAuth mode:
+
+- Set `TV_OAUTH_JWKS_URL` (and optional issuer/audience/scope settings) to validate JWT bearer tokens.
+- API key authentication remains available as fallback.
+
 ## Smoke Test (Vercel)
 
 ```bash
