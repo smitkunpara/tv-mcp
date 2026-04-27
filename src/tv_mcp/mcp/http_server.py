@@ -4,6 +4,9 @@ HTTP entrypoint for remote MCP connections with OAuth/API-key authentication.
 
 import logging
 import os
+import subprocess
+import threading
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any, Literal, cast
 
@@ -168,6 +171,46 @@ def _parse_transport(raw_value: str) -> SupportedHTTPTransport:
     return cast(SupportedHTTPTransport, normalized)
 
 
+_tunnel_proc: subprocess.Popen | None = None
+
+
+def _start_tunnel(port: int):
+    global _tunnel_proc
+    subdomain = os.getenv("SUBDOMAIN")
+    args = [
+        "npx",
+        "-y",
+        "localtunnel",
+        "--port",
+        str(port),
+        "--local-host",
+        "127.0.0.1",
+    ]
+    if subdomain:
+        args.extend(["--subdomain", subdomain])
+        logger.info(f"📡 Requesting persistent subdomain: {subdomain}...")
+    try:
+        _tunnel_proc = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        )
+        if _tunnel_proc.stdout is not None:
+            for line in _tunnel_proc.stdout:
+                if "loca.lt" in line:
+                    url = line.strip().split()[-1]
+                    print(f"\n🌍 Public URL:  {url}")
+                    print(f"   MCP:         {url}/mcp\n")
+                    break
+    except Exception as e:
+        logger.error(f"⚠️  Tunnel failed: {e}")
+
+
+def _stop_tunnel():
+    global _tunnel_proc
+    if _tunnel_proc:
+        _tunnel_proc.terminate()
+        _tunnel_proc = None
+
+
 def create_http_app(
     transport: SupportedHTTPTransport = "http",
     mcp_mount_path: str | None = None,
@@ -179,11 +222,23 @@ def create_http_app(
     mount_path = _normalize_mount_path(mcp_mount_path or _default_mount_path(transport))
     mcp_app = mcp.http_app(path="/", transport=transport)
 
+    @asynccontextmanager
+    async def app_lifespan(app: FastAPI):
+        # Start tunnel if SUBDOMAIN or USE_TUNNEL is set
+        port = int(os.getenv("MCP_HTTP_PORT", "8000"))
+        if os.getenv("SUBDOMAIN") or os.getenv("USE_TUNNEL"):
+            threading.Thread(target=_start_tunnel, args=(port,), daemon=True).start()
+
+        async with mcp_app.lifespan(app):
+            yield
+
+        _stop_tunnel()
+
     app = FastAPI(
         title="TradingView MCP HTTP Server",
         version="1.0.0",
         description="Remote MCP endpoint with OAuth/API-key authentication",
-        lifespan=mcp_app.lifespan,
+        lifespan=app_lifespan,
     )
     app.state.mcp_mount_path = mount_path
     app.state.mcp_transport = transport
